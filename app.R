@@ -74,10 +74,10 @@ server <- function(input, output) {
     
     load("./DataNetworkGenieCO2Clusters.RData")
     load("./normalized.count_At.RData")
-    
+    data$edges$value <- data$edges$weight
     output$network <- renderVisNetwork({
         visNetwork(nodes = data$nodes, edges = data$edges, height = "10%", width = "100%") %>%
-            visEdges(smooth = FALSE) %>% visPhysics(solver = "forceAtlas2Based", timestep = 1, minVelocity=10, maxVelocity = 10, stabilization = F)%>%
+            visEdges(smooth = FALSE, arrows = 'to') %>% visPhysics(solver = "forceAtlas2Based", timestep = 1, minVelocity=10, maxVelocity = 10, stabilization = F)%>%
             visOptions(selectedBy = "group", 
                        highlightNearest = TRUE, 
                        nodesIdSelection  = TRUE, collapse = TRUE)%>% visEvents(click = "function(nodes){
@@ -105,11 +105,7 @@ server <- function(input, output) {
     
     output$expression_plot <- renderPlot({
         getExpression(input$click)
-        
-        
     })
-    
-
 }
 
 # Run the application 
