@@ -6,7 +6,7 @@ library(stringr)
 library(ggplot2)
 #source("./DEFunctions.R")
 setwd("./")
-
+source("Visu.R")
 
 getExpression <- function(gene, conds = "all", specie = "At"){
   # Plots the expression levels of a given gene, using the normized.count data provoded.
@@ -40,30 +40,37 @@ ui <- fluidPage(
     hr(),
     fluidRow(
         column(
-            width = 12,
+            width = 6, height = 6,
             visNetworkOutput("network"),
             
+        ),
+        column(
+          width = 6,
+          div(h3("Gene expression accros all conditions"), align = "center"),
+          plotOutput("heatmap")
+          
         )
     ),
     
     hr(),
     fluidRow(
         column(
-            width = 12,
+            width = 6,
             div(h3("You selected"), align = "center"),
             DT::dataTableOutput("Ontologies")
             
+        ),
+        column(
+          width = 6,
+          div(h3("Gene expression accros all conditions"), align = "center"),
+          plotOutput("expression_plot")
+          
         )
     ),
     
     hr(),
     fluidRow(
-        column(
-            width = 12,
-            div(h3("Gene expression accros all conditions"), align = "center"),
-            plotOutput("expression_plot")
-            
-        )
+        
     )
     
     
@@ -72,20 +79,21 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     
-    load("./DataNetworkGenieCO2Clusters.RData")
+    load("./DataNetworkGenieCO2LowNitrate.RData")
     load("./normalized.count_At.RData")
     data$edges$value <- data$edges$weight
+    
+    
     output$network <- renderVisNetwork({
-        visNetwork(nodes = data$nodes, edges = data$edges, height = "10%", width = "100%") %>%
+        graph <- visNetwork(nodes = data$nodes, edges = data$edges, height = "30%", width = "100%") %>%
             visEdges(smooth = FALSE, arrows = 'to') %>% visPhysics(solver = "forceAtlas2Based", timestep = 1, minVelocity=10, maxVelocity = 10, stabilization = F)%>%
             visOptions(selectedBy = "group", 
                        highlightNearest = TRUE, 
                        nodesIdSelection  = TRUE, collapse = TRUE)%>% visEvents(click = "function(nodes){
-                  Shiny.onInputChange('click', nodes.nodes[0]);
+                  Shiny.onInputChange('click', nodes.nodes);
                   ;}"
                        )
-        
-        
+        graph
     })
     
     output$SelectedGene <- renderPrint({
@@ -100,11 +108,19 @@ server <- function(input, output) {
             data$nodes[c("description", "Ontology")]
         }
         else{
-            data$nodes[input$click,c("description", "Ontology")]
+          neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
+                                      data$edges[grepl(input$click[1], data$edges$to),]$from))
+            data$nodes[c(input$click[1], neighboors),c("description", "Ontology")]
         }})
     
     output$expression_plot <- renderPlot({
         getExpression(input$click)
+    })
+    
+    output$heatmap <- renderPlot({
+      neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
+                                  data$edges[grepl(input$click[1], data$edges$to),]$from))
+      heatmapPerso(normalized.count, conds = "all", genes = c(input$click[1], neighboors))
     })
 }
 
