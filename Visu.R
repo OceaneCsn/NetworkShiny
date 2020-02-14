@@ -5,7 +5,8 @@ suppressMessages(library(ggplot2, warn.conflicts = F, quietly = T))
 
 #setwd("D:/These/CombinatoireRNASeqFeNCO2/")
 
-heatmapPerso <- function(normalized.count, genes, conds="all", specie="At", geneNames=NA){
+heatmapPerso <- function(normalized.count, genes=NA, conds="all", specie="At", geneNames=NA){
+  if(length(genes) < 1){genes <- rownames(normalized.count)[1:6]}
   if(specie == "At") load("normalized.count_At.RData")
   if(specie == "Sl") load("normalized.count_Sl.RData")
   if (length(conds) ==1){
@@ -40,16 +41,17 @@ getExpression <- function(gene, conds = "all", specie = "At"){
   if (length(conds) ==1){
     conds = colnames(normalized.count)
   }else{conds = grepl(conds[1], colnames(normalized.count)) | grepl(conds[2], colnames(normalized.count))}
-  print(conds)
   df <- normalized.count[gene, conds]
   library(reshape2)
   d<- melt(df, silent=T)
   d$group = str_split_fixed(rownames(d), "_", 2)[,1]
   
   p <- ggplot(data = d, aes(x=group, y=value, fill=group)) + geom_dotplot(binaxis = "y", stackdir = "center") +
-    theme(axis.text.x = element_text(angle = 320,
-                                     hjust = 0, colour = "grey50"), plot.title = element_text( size = 14, face = "bold")) +
-    ggtitle(paste("Normalized expression for ", gene))
-  print(df)
+    scale_fill_discrete(name = "Conditions")+
+    theme(strip.text.x = element_text(size = 26), plot.title = element_text(size=22, face="bold"),
+          legend.title = element_text(size = 25, face="bold"), legend.text = element_text(size=20),
+          axis.text.y = element_text(size = 18, angle = 30), axis.text.x = element_text(size = 26, angle = 320, hjust = 0, colour = "grey50"),
+          axis.title=element_text(size=17)) + ylab("Normalized counts") +
+    ggtitle(paste("Normalized expression for ", gene)) + xlab("- C : elevated CO2 - c : ambiant CO2 - N : 10mM nitrate - n : 0.5mM nitrate - F : iron - f : iron starvation")
   return(p)
 }
