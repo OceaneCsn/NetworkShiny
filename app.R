@@ -4,41 +4,72 @@ library(DT)
 library(visNetwork)
 library(stringr)
 library(ggplot2)
+library(shinydashboard)
 setwd("./")
 source("Visu.R")
 
 
-# todo : ggplotly? Mettre les statistiques du graphe? ranking genes? choix du GRN ds menu déroulant
+# todo : ggplotly Mettre les statistiques du graphe? ranking genes?
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
-    # Application title
-    titlePanel("Network visualisation"),
-    hr(),
-    fixedRow(
-        column(
-            width = 6,
-            visNetworkOutput("network", height = "1000px"),
+ui <- dashboardPage(skin="black",
+  
+    dashboardHeader(title = "Network visualisation"),
+    
+    dashboardSidebar(
+      sidebarMenu(
+        menuItem("Network", tabName = "Network", icon = icon("project-diagram")),
+        menuItem("Context", tabName = "Context", icon = icon("seedling"))
+      )
+    ),
+    
+    dashboardBody(
+      
+      tabItems(
+        # First tab content
+        tabItem(tabName = "Network",
+          selectInput("select", label = h3("Select network"), width = 2000,
+                      choices = list("Common resopnse to CO2 (131 genes)" = 1, "Response to CO2 in nitrate starvation (1100 genes)" = 2), 
+                      selected = 1),
+          hr(),
+          
+          fixedRow(
+              column(
+                  width = 6,
+                  visNetworkOutput("network", height = "1000px"),
+              ),
+              column(
+                width = 6,
+                tabsetPanel(type = "tabs",
+                            tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
+                            tabPanel("Heatmap", plotOutput("heatmap"), br(), plotOutput("expression_plot"))
+                            )
+              )
+          )
         ),
-        column(
-          width = 6,
-          tabsetPanel(type = "tabs",
-                      tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
-                      tabPanel("Heatmap", plotOutput("heatmap"), br(), plotOutput("expression_plot"))
-                      )
+        tabItem(tabName = "Context"
+              
         )
+      )
     )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     
-    load("./DataNetworkGenieCO2LowNitrate.RData")
+    #load("./DataNetworkGenieCO2LowNitrate.RData")
     load("./normalized.count_At.RData")
-    data$edges$value <- data$edges$weight
-    data$nodes$group <- ifelse(data$nodes$group == 1, "Transcription Factor", "Target Gene")
+    
     
     output$network <- renderVisNetwork({
+        if(input$select ==1){
+          load("./DataNetworkGenieCO2Clusters.RData")
+        }
+        else{
+          load("./DataNetworkGenieCO2LowNitrate.RData")
+        }
+        data$edges$value <- data$edges$weight
+        data$nodes$group <- ifelse(data$nodes$group == 1, "Transcription Factor", "Target Gene")
         graph <- visNetwork(nodes = data$nodes, edges = data$edges) %>% 
           visNodes(borderWidth=0.5) %>% 
           visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
@@ -62,6 +93,12 @@ server <- function(input, output) {
     
 
     output$Ontologies <- DT::renderDataTable({
+      if(input$select ==1){
+        load("./DataNetworkGenieCO2Clusters.RData")
+      }
+      else{
+        load("./DataNetworkGenieCO2LowNitrate.RData")
+      }
         if(is.null(input$click)){
             data$nodes[c("description", "Ontology")]
         }
@@ -76,6 +113,12 @@ server <- function(input, output) {
     })
     
     output$heatmap <- renderPlot({
+      if(input$select ==1){
+        load("./DataNetworkGenieCO2Clusters.RData")
+      }
+      else{
+        load("./DataNetworkGenieCO2LowNitrate.RData")
+      }
       if(is.null(input$click)){
         heatmapPerso(normalized.count, conds = "all", genes = c("AT1G01150", "AT1G01590"))
       }
