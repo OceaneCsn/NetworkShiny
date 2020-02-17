@@ -19,7 +19,7 @@ ui <- dashboardPage(skin="black",
     dashboardSidebar(
       sidebarMenu(
         menuItem("Network", tabName = "Network", icon = icon("project-diagram")),
-        menuItem("Context", tabName = "Context", icon = icon("seedling"))
+        menuItem("Expression database", tabName = "Expression_data", icon = icon("seedling"))
       )
     ),
     
@@ -33,9 +33,12 @@ ui <- dashboardPage(skin="black",
                       selected = 1),
           hr(),
           
+          
+          
           fixedRow(
               column(
                   width = 6,
+                  textInput("geneVis", "Visualize a precise gene! (AGI)", value = ""),
                   visNetworkOutput("network", height = "1000px"),
               ),
               column(
@@ -47,18 +50,24 @@ ui <- dashboardPage(skin="black",
               )
           )
         ),
-        tabItem(tabName = "Context"
+        tabItem(tabName = "Expression_data",
+              textInput("gene", "Ask for a gene! (AGI)", value = "AT1G01020"),
+              br(),
+              plotOutput("expression_plot_specific")
               
         )
       )
     )
 )
 
+
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
     
     #load("./DataNetworkGenieCO2LowNitrate.RData")
     load("./normalized.count_At.RData")
+    
     
     
     output$network <- renderVisNetwork({
@@ -83,6 +92,11 @@ server <- function(input, output) {
                                 color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
                       visGroups(groupname = "Target Gene", color = "#77EEAA")
         graph
+    })
+    
+    observe({
+      visNetworkProxy("graph") %>%
+        visFocus(id = input$geneVis, scale = 4)
     })
     
     output$SelectedGene <- renderPrint({
@@ -110,6 +124,32 @@ server <- function(input, output) {
     
     output$expression_plot <- renderPlot({
         getExpression(input$click)
+    })
+    
+    output$heatmap <- renderPlot({
+      if(input$select ==1){
+        load("./DataNetworkGenieCO2Clusters.RData")
+      }
+      else{
+        load("./DataNetworkGenieCO2LowNitrate.RData")
+      }
+      if(is.null(input$click)){
+        heatmapPerso(normalized.count, conds = "all", genes = c("AT1G01150", "AT1G01590"))
+      }
+      else{
+        neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
+                                    data$edges[grepl(input$click[1], data$edges$to),]$from))
+        heatmapPerso(normalized.count, conds = "all", genes = c(input$click[1], neighboors))
+      }
+      
+    })
+    
+    output$expression_plot <- renderPlot({
+      getExpression(input$click)
+    })
+    
+    output$expression_plot_specific <- renderPlot({
+      getExpression(input$gene)
     })
     
     output$heatmap <- renderPlot({
