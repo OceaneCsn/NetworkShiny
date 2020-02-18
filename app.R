@@ -5,9 +5,10 @@ library(visNetwork)
 library(stringr)
 library(ggplot2)
 library(shinydashboard)
+library(igraph)
 setwd("./")
 source("Visu.R")
-
+#options(bitmapType='cairo')
 
 # todo : ggplotly Mettre les statistiques du graphe? ranking genes?
 
@@ -32,26 +33,26 @@ ui <- dashboardPage(skin="black",
                       choices = list("Common resopnse to CO2 (131 genes)" = 1, "Response to CO2 in nitrate starvation (1100 genes)" = 2), 
                       selected = 1),
           hr(),
-          
-          
-          
+
           fixedRow(
               column(
                   width = 6,
-                  textInput("geneVis", "Visualize a precise gene! (AGI)", value = ""),
+                  textInput("geneVis", "Visualize a precise gene (AGI)", value = ""),
                   visNetworkOutput("network", height = "1000px"),
               ),
               column(
                 width = 6,
                 tabsetPanel(type = "tabs",
                             tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
-                            tabPanel("Heatmap", plotOutput("heatmap"), br(), plotOutput("expression_plot"))
+                            tabPanel("Heatmap", plotOutput("heatmap"), br(), plotOutput("expression_plot")),
+                            tabPanel("Gene ranking", DT::dataTableOutput("Ranking")),
+                            tabPanel("Network statistics", plotOutput("NetStats"))
                             )
               )
           )
         ),
         tabItem(tabName = "Expression_data",
-              textInput("gene", "Ask for a gene! (AGI)", value = "AT1G01020"),
+              textInput("gene", "Ask me a gene! (AGI)", value = "AT1G01020"),
               br(),
               plotOutput("expression_plot_specific")
               
@@ -79,10 +80,12 @@ server <- function(input, output) {
         }
         data$edges$value <- data$edges$weight
         data$nodes$group <- ifelse(data$nodes$group == 1, "Transcription Factor", "Target Gene")
-        graph <- visNetwork(nodes = data$nodes, edges = data$edges) %>% 
-          visNodes(borderWidth=0.5) %>% 
+        
+        
+        
+        visNetwork(nodes = data$nodes, edges = data$edges)%>% 
           visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
-          visPhysics(solver = "forceAtlas2Based", timestep = 1, minVelocity=10, 
+          visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
                      maxVelocity = 10, stabilization = F)%>%
           visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = TRUE)%>% 
           visEvents(click = "function(nodes){
@@ -90,21 +93,20 @@ server <- function(input, output) {
                   ;}") %>% 
                       visGroups(groupname = "Transcription Factor", size = 28,
                                 color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
-                      visGroups(groupname = "Target Gene", color = "#77EEAA")
-        graph
+                      visGroups(groupname = "Target Gene", color = "#77EEAA") %>% 
+          visNodes(borderWidth=0.5) 
+
     })
     
     observe({
-      visNetworkProxy("graph") %>%
-        visFocus(id = input$geneVis, scale = 4)
+      #input$click <- input$geneVis
+      visNetworkProxy("network") %>%
+        visFocus(id = input$geneVis, scale = 1) %>% visSelectNodes(id = input$geneVis)
     })
     
     output$SelectedGene <- renderPrint({
         print(input$click)
     })
-    
-    #output$SelectedGene <- renderPrint({print(input$mynetwork_selectedBy)})
-    
 
     output$Ontologies <- DT::renderDataTable({
       if(input$select ==1){
@@ -122,8 +124,39 @@ server <- function(input, output) {
             data$nodes[c(input$click[1], neighboors),c("description", "Ontology")]
         }})
     
+    output$Ranking <- DT::renderDataTable({
+      if(input$select ==1){
+        load("./DataNetworkGenieCO2Clusters.RData")
+      }
+      else{
+        load("./DataNetworkGenieCO2LowNitrate.RData")
+      }
+      net <- igraph::graph_from_data_frame(d = data$edges)
+      importance <- (degree(net)/max(degree(net))+betweenness(net)/max(betweenness(net)))*0.5
+      data$nodes$Betweenness <- betweenness(net)[match(data$nodes$id, names(betweenness(net)))]
+      data$nodes$Degree <- degree(net)[match(data$nodes$id, names(degree(net)))]
+      data$nodes$Centrality <- importance[match(data$nodes$id, names(importance))]
+      data$nodes$Rank <- order(-data$nodes$Centrality)
+      
+      data$nodes[order(-data$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
+      
+
+    })
+    
     output$expression_plot <- renderPlot({
         getExpression(input$click)
+      
+    })
+    
+    output$NetStats <- renderPlot({
+      if(input$select ==1){
+        load("./DataNetworkGenieCO2Clusters.RData")
+      }
+      else{
+        load("./DataNetworkGenieCO2LowNitrate.RData")
+      }
+      net <- igraph::graph_from_data_frame(d = data$edges)
+      netStats(net)
     })
     
     output$heatmap <- renderPlot({

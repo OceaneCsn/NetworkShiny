@@ -1,6 +1,7 @@
 suppressMessages(library(stringr, warn.conflicts = F, quietly = T))
 suppressMessages(library(tidyr, warn.conflicts = F, quietly = T))
 suppressMessages(library(ggplot2, warn.conflicts = F, quietly = T))
+suppressMessages(library(gridExtra, warn.conflicts = F, quietly = T))
 
 
 #setwd("D:/These/CombinatoireRNASeqFeNCO2/")
@@ -54,4 +55,17 @@ getExpression <- function(gene, conds = "all", specie = "At"){
           axis.title=element_text(size=17)) + ylab("Normalized counts") +
     ggtitle(paste("Normalized expression for ", gene)) + xlab("- C : elevated CO2 - c : ambiant CO2 - N : 10mM nitrate - n : 0.5mM nitrate - F : iron - f : iron starvation")
   return(p)
+}
+
+netStats <- function(g){
+  degree<- degree(g)
+  betweenness<- betweenness(g, weights=NA)
+  Node_nw_st<- data.frame(degree, betweenness)
+  deg <- ggplot( data = Node_nw_st, aes(x=degree)) +geom_histogram( bins = 50, fill="#69b3a2", color="#e9ecef", alpha=0.7) +
+          ggtitle("Degree distribution") +
+          theme(plot.title = element_text(size=15))
+  bet <- ggplot( data = Node_nw_st, aes(x=betweenness)) +geom_histogram(bins = 50, fill="#E69F00", color="#e9ecef", alpha=0.7) +
+          ggtitle("Betweeness distribution") +
+          theme(plot.title = element_text(size=15))
+  return(grid.arrange(deg, bet, nrow = 1))
 }
