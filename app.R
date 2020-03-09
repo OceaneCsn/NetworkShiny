@@ -6,11 +6,11 @@ library(stringr)
 library(ggplot2)
 library(shinydashboard)
 library(igraph)
+library(plotly)
 setwd("./")
 source("Visu.R")
 #options(bitmapType='cairo')
 
-# todo : ggplotly Mettre les statistiques du graphe? ranking genes?
 
 # Define UI for application that draws a histogram
 ui <- dashboardPage(skin="black",
@@ -44,7 +44,7 @@ ui <- dashboardPage(skin="black",
                 width = 6,
                 tabsetPanel(type = "tabs",
                             tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
-                            tabPanel("Heatmap", plotOutput("heatmap"), br(), plotOutput("expression_plot")),
+                            tabPanel("Heatmap", plotlyOutput("heatmap"), br(), plotOutput("expression_plot")),
                             tabPanel("Gene ranking", DT::dataTableOutput("Ranking")),
                             tabPanel("Network statistics", plotOutput("NetStats"))
                             )
@@ -185,7 +185,7 @@ server <- function(input, output) {
       getExpression(input$gene)
     })
     
-    output$heatmap <- renderPlot({
+    output$heatmap <- renderPlotly({
       if(input$select ==1){
         load("./DataNetworkGenieCO2Clusters.RData")
       }

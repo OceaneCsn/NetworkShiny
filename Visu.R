@@ -3,7 +3,16 @@ suppressMessages(library(tidyr, warn.conflicts = F, quietly = T))
 suppressMessages(library(ggplot2, warn.conflicts = F, quietly = T))
 suppressMessages(library(gridExtra, warn.conflicts = F, quietly = T))
 
-
+translate <- function(text){
+  res = ""
+  if(grepl("c", text)){res = paste0(res, "AmbientCO2,")}
+  else{res = paste0(res, "ElevatedCO2,")}
+  if(grepl("N", text)){res = paste0(res, "HightNitrate,")}
+  else{res = paste0(res, "LowNitrate,")}
+  if(grepl("f", text)){res = paste0(res, "IronStarvation")}
+  else{res = paste0(res, "IronSupply")}
+  return(res)
+}
 #setwd("D:/These/CombinatoireRNASeqFeNCO2/")
 
 heatmapPerso <- function(normalized.count, genes=NA, conds="all", specie="At", geneNames=NA){
@@ -28,7 +37,7 @@ heatmapPerso <- function(normalized.count, genes=NA, conds="all", specie="At", g
     print("coucou")
     exp.heatmap = exp.heatmap + scale_y_discrete(labels=geneNames)
   }
-  print(exp.heatmap)
+  return(ggplotly(exp.heatmap))
 }
 
 
@@ -48,7 +57,7 @@ getExpression <- function(gene, conds = "all", specie = "At"){
   d$group = str_split_fixed(rownames(d), "_", 2)[,1]
   
   p <- ggplot(data = d, aes(x=group, y=value, fill=group)) + geom_dotplot(binaxis = "y", stackdir = "center") +
-    scale_fill_discrete(name = "Conditions")+
+    scale_fill_discrete(name = "Conditions", labels=sapply(levels(as.factor(d$group)),translate))+
     theme(strip.text.x = element_text(size = 26), plot.title = element_text(size=22, face="bold"),
           legend.title = element_text(size = 25, face="bold"), legend.text = element_text(size=20),
           axis.text.y = element_text(size = 18, angle = 30), axis.text.x = element_text(size = 26, angle = 320, hjust = 0, colour = "grey50"),
