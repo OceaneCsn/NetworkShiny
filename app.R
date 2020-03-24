@@ -7,46 +7,63 @@ library(ggplot2)
 library(shinydashboard)
 library(igraph)
 library(plotly)
-setwd("./")
-source("Visu.R")
-#options(bitmapType='cairo')
+if(version$os=="linux-gnu") options(bitmapType='cairo')
 
 
-# Define UI for application that draws a histogram
+# personnal functions
+source("./Functions/Visu.R")
+source("./Functions/Network_functions.R")
+
+# expression levels and ontologies
+load("./Data/OntologyAllGenes.RData")
+load("./Data/normalized.count_At.RData")
+load("./Data/NitrateGenes.RData")
+load("./Data/DEGsListsFiltered.RData")
+
+listFiles <- list.files("./NetworkData/", full.names = F)
+names(listFiles) = listFiles
+files <- lapply(split(listFiles, names(listFiles)), unname)
+
+load(paste0("./NetworkData/NitrateDEGenes_CO2-N.RData"))
+
+load("./NetworkData/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
+
+
 ui <- dashboardPage(skin="black",
   
     dashboardHeader(title = "Network visualisation"),
-    
     dashboardSidebar(
       sidebarMenu(
         menuItem("Network", tabName = "Network", icon = icon("project-diagram")),
-        menuItem("Expression database", tabName = "Expression_data", icon = icon("seedling"))
+        menuItem("Expression database", tabName = "Expression_data", icon = icon("seedling")),
+        menuItem("Differential Expression database", tabName = "DEGs", icon = icon("seedling"))
       )
     ),
     
     dashboardBody(
       
       tabItems(
-        # First tab content
         tabItem(tabName = "Network",
-          selectInput("select", label = h3("Select network"), width = 2000,
-                      choices = list("Common resopnse to CO2 (131 genes)" = 1, "Response to CO2 in nitrate starvation (1100 genes)" = 2), 
-                      selected = 1),
+                selectInput("select", label = h3("Select network data"), width = 700,
+                            choices = files, selected="NitrateDEGenes_CO2-N.RData"),
+                
           hr(),
-
           fixedRow(
               column(
                   width = 6,
                   textInput("geneVis", "Visualize a precise gene (AGI)", value = ""),
                   visNetworkOutput("network", height = "1000px"),
+                  actionButton("colorFromNitrate", "Color according to nitrate score")
               ),
               column(
                 width = 6,
                 tabsetPanel(type = "tabs",
                             tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
+                            tabPanel("Ontologies Nitrate", DT::dataTableOutput("nitrate")),
                             tabPanel("Heatmap", plotlyOutput("heatmap"), br(), plotOutput("expression_plot")),
                             tabPanel("Gene ranking", DT::dataTableOutput("Ranking")),
-                            tabPanel("Network statistics", plotOutput("NetStats"))
+                            tabPanel("Network statistics", plotOutput("NetStats")),
+                            tabPanel("Common lionks with gaudinier", verbatimTextOutput("commonLinks"))
                             )
               )
           )
@@ -56,50 +73,54 @@ ui <- dashboardPage(skin="black",
               br(),
               plotOutput("expression_plot_specific")
               
+        ),
+        
+        tabItem(tabName = "DEGs",
+                fixedRow(
+                  column(
+                    width = 10,
+                    selectInput("comparison", label=h3("Select differentiel expression analysis"), choices = names(DEGs)),
+                    DT::dataTableOutput("genesComp"))
+                  ),
+                  column(
+                    width = 4,
+                    textInput("geneToSearch", "Ask me a gene! (AGI)", value = "AT1G08090"),
+                    verbatimTextOutput("comparisonsDEG")
+                  )
+                )
+      
+   
         )
       )
     )
-)
+
 
 
 
 # Define server logic required to draw a histogram
-server <- function(input, output) {
-    
-    #load("./DataNetworkGenieCO2LowNitrate.RData")
-    load("./normalized.count_At.RData")
-    
-    
+server <- function(input, output, session) {
+  
+    #reactive({load(paste0("./NetworkData/",input$select))})
     
     output$network <- renderVisNetwork({
-        if(input$select ==1){
-          load("./DataNetworkGenieCO2Clusters.RData")
-        }
-        else{
-          load("./DataNetworkGenieCO2LowNitrate.RData")
-        }
-        data$edges$value <- data$edges$weight
-        data$nodes$group <- ifelse(data$nodes$group == 1, "Transcription Factor", "Target Gene")
-        
-        
-        
-        visNetwork(nodes = data$nodes, edges = data$edges)%>% 
-          visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
-          visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
-                     maxVelocity = 10, stabilization = F)%>%
-          visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = TRUE)%>% 
-          visEvents(click = "function(nodes){
+      load(paste0("./NetworkData/",input$select))
+      data$nodes$label <- data$nodes$Ontology
+      visNetwork(nodes = data$nodes, edges = data$edges)%>% 
+        visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
+        visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
+                   maxVelocity = 10, stabilization = F)%>%
+        visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = TRUE)%>% 
+        visEvents(click = "function(nodes){
                   Shiny.onInputChange('click', nodes.nodes);
                   ;}") %>% 
-                      visGroups(groupname = "Transcription Factor", size = 28,
-                                color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
-                      visGroups(groupname = "Target Gene", color = "#77EEAA") %>% 
-          visNodes(borderWidth=0.5) 
+        visGroups(groupname = "Regulator", size = 28,
+                  color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
+        visGroups(groupname = "Target Gene", color = list("background" = "#77EEAA", hover = "grey")) %>% 
+        visNodes(borderWidth=0.5 )  %>% visInteraction(hover = TRUE)
 
     })
     
     observe({
-      #input$click <- input$geneVis
       visNetworkProxy("network") %>%
         visFocus(id = input$geneVis, scale = 1) %>% visSelectNodes(id = input$geneVis)
     })
@@ -109,89 +130,79 @@ server <- function(input, output) {
     })
 
     output$Ontologies <- DT::renderDataTable({
-      if(input$select ==1){
-        load("./DataNetworkGenieCO2Clusters.RData")
-      }
-      else{
-        load("./DataNetworkGenieCO2LowNitrate.RData")
-      }
+      load(paste0("./NetworkData/",input$select))
+      
+
         if(is.null(input$click)){
-            data$nodes[c("description", "Ontology")]
+            data$nodes
         }
         else{
           neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
                                       data$edges[grepl(input$click[1], data$edges$to),]$from))
-            data$nodes[c(input$click[1], neighboors),c("description", "Ontology")]
+            data$nodes[c(input$click[1], neighboors),]
         }})
     
-    output$Ranking <- DT::renderDataTable({
-      if(input$select ==1){
-        load("./DataNetworkGenieCO2Clusters.RData")
+    output$nitrate <- DT::renderDataTable({
+      load(paste0("./NetworkData/",input$select))
+      
+      
+      if(is.null(input$click)){
+        res <- NitrateGenes(data$nodes$id, nGenes, ontologies)
+        res[,!grepl("_", colnames(res))]
       }
       else{
-        load("./DataNetworkGenieCO2LowNitrate.RData")
-      }
+        neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
+                                    data$edges[grepl(input$click[1], data$edges$to),]$from))
+        res <- NitrateGenes(c(input$click[1], neighboors), nGenes, ontologies)
+        res[,!grepl("_", colnames(res))]
+      }})
+    
+    output$Ranking <- DT::renderDataTable({
+      load(paste0("./NetworkData/",input$select))
       net <- igraph::graph_from_data_frame(d = data$edges)
       importance <- (degree(net)/max(degree(net))+betweenness(net)/max(betweenness(net)))*0.5
       data$nodes$Betweenness <- betweenness(net)[match(data$nodes$id, names(betweenness(net)))]
       data$nodes$Degree <- degree(net)[match(data$nodes$id, names(degree(net)))]
       data$nodes$Centrality <- importance[match(data$nodes$id, names(importance))]
       data$nodes$Rank <- order(-data$nodes$Centrality)
-      
       data$nodes[order(-data$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
-      
-
+    
     })
     
     output$expression_plot <- renderPlot({
-        getExpression(input$click)
+        getExpression(input$click, normalized.count = normalized.count)
       
     })
     
+    
     output$NetStats <- renderPlot({
-      if(input$select ==1){
-        load("./DataNetworkGenieCO2Clusters.RData")
-      }
-      else{
-        load("./DataNetworkGenieCO2LowNitrate.RData")
-      }
+      load(paste0("./NetworkData/",input$select))
       net <- igraph::graph_from_data_frame(d = data$edges)
       netStats(net)
     })
     
-    output$heatmap <- renderPlot({
-      if(input$select ==1){
-        load("./DataNetworkGenieCO2Clusters.RData")
-      }
-      else{
-        load("./DataNetworkGenieCO2LowNitrate.RData")
-      }
-      if(is.null(input$click)){
-        heatmapPerso(normalized.count, conds = "all", genes = c("AT1G01150", "AT1G01590"))
-      }
-      else{
-        neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
-                                    data$edges[grepl(input$click[1], data$edges$to),]$from))
-        heatmapPerso(normalized.count, conds = "all", genes = c(input$click[1], neighboors))
-      }
-      
+    
+    observeEvent(input$colorFromNitrate,{
+      load(paste0("./NetworkData/",input$select))
+      data$nodes$label <- data$nodes$Ontology
+      newNodes <- data$nodes
+      nScores <- NitrateGenes(data$nodes$id, nGenes, ontologies)
+      newNodes$group<- nScores[match(newNodes$id, nScores$Gene), "NitrateScore"]
+      visNetworkProxy("network") %>%
+        visUpdateNodes(nodes = newNodes) %>% visGroups(groupname = "6", size = 28,
+                                                       color = "#660000") %>% 
+        visGroups(groupname = "5", color = "#990000")%>% 
+      visGroups(groupname = "4", color = "#cc0000")%>% 
+      visGroups(groupname = "3", color = "#e06666")%>% 
+      visGroups(groupname = "2", color = "#ea9999")%>% 
+        visGroups(groupname = "1", color = "#f4cccc")%>% 
+        visGroups(groupname = "0", color = "#ffffff")%>% 
+        visGroups(groupname = "7", color = "#330000")
     })
     
-    output$expression_plot <- renderPlot({
-      getExpression(input$click)
-    })
-    
-    output$expression_plot_specific <- renderPlot({
-      getExpression(input$gene)
-    })
     
     output$heatmap <- renderPlotly({
-      if(input$select ==1){
-        load("./DataNetworkGenieCO2Clusters.RData")
-      }
-      else{
-        load("./DataNetworkGenieCO2LowNitrate.RData")
-      }
+      load(paste0("./NetworkData/",input$select))
       if(is.null(input$click)){
         heatmapPerso(normalized.count, conds = "all", genes = c("AT1G01150", "AT1G01590"))
       }
@@ -202,7 +213,38 @@ server <- function(input, output) {
       }
       
     })
+    
+    ################################ Functions DEG database
+  
+    
+    output$expression_plot_specific <- renderPlot({
+      getExpression(input$gene, normalized.count)
+    })
+    
+    ################################ Functions DEG database
+    
+    output$genesComp <- DT::renderDataTable({
+      
+      NitrateGenes(DEGs[[input$comparison]], nGenes, ontologies)
+    })
+    
+    output$comparisonsDEG <- renderPrint({
+      res <- ""
+      for(comp in names(DEGs)){
+        if (input$geneToSearch %in% DEGs[[comp]])
+          print(comp)
+      }
+      
+    })
+    
+    output$commonLinks <- renderPrint({
+      load(paste0("./NetworkData/",input$select))
+      data$edges$pairs <- paste(data$edges$from, data$edges$to)
+      gaudinier$edges$pairs <- paste(gaudinier$edges$from, gaudinier$edges$to)
+      data$edges[intersect(data$edges$pairs, gaudinier$edges$pairs),]
+      })
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
