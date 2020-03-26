@@ -26,7 +26,7 @@ files <- lapply(split(listFiles, names(listFiles)), unname)
 
 load(paste0("./NetworkData/NitrateDEGenes_CO2-N.RData"))
 
-load("./NetworkData/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
+load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
 
 
 ui <- dashboardPage(skin="black",
@@ -63,7 +63,13 @@ ui <- dashboardPage(skin="black",
                             tabPanel("Heatmap", plotlyOutput("heatmap"), br(), plotOutput("expression_plot")),
                             tabPanel("Gene ranking", DT::dataTableOutput("Ranking")),
                             tabPanel("Network statistics", plotOutput("NetStats")),
-                            tabPanel("Common lionks with gaudinier", verbatimTextOutput("commonLinks"))
+                            tabPanel("Comparison to gaudinier",
+                                     h2("Combinatorial interactions between transcription factors and promoters of genes associated with nitrogen metabolism, signalling and nitrogen-associated processes"),
+                                     h3("Common links with state of the art network :"),
+                                     DT::dataTableOutput("commonLinks"), h3('Common genes with state of the art network : '),
+                                     DT::dataTableOutput("commonNodes"))
+                            
+                            #Pearson and Spearman Rank Correlation of transcription factor and target interactions across publically available nitrogen availability microarray experiments
                             )
               )
           )
@@ -104,19 +110,24 @@ server <- function(input, output, session) {
     
     output$network <- renderVisNetwork({
       load(paste0("./NetworkData/",input$select))
+      
+      
+      
       data$nodes$label <- data$nodes$Ontology
       visNetwork(nodes = data$nodes, edges = data$edges)%>% 
         visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
-        visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
-                   maxVelocity = 10, stabilization = F)%>%
-        visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = TRUE)%>% 
+        # visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
+        #            maxVelocity = 10, stabilization = F)%>%
+        visPhysics(solver = "forceAtlas2Based", timestep = 0.6, minVelocity=12, 
+                   maxVelocity = 10, stabilization = F)%>% 
+        visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = F)%>% 
         visEvents(click = "function(nodes){
                   Shiny.onInputChange('click', nodes.nodes);
                   ;}") %>% 
         visGroups(groupname = "Regulator", size = 28,
                   color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
         visGroups(groupname = "Target Gene", color = list("background" = "#77EEAA", hover = "grey")) %>% 
-        visNodes(borderWidth=0.5 )  %>% visInteraction(hover = TRUE)
+        visNodes(borderWidth=0.5, font = list("size"=35))  %>% visInteraction(hover = TRUE)
 
     })
     
@@ -237,15 +248,23 @@ server <- function(input, output, session) {
       
     })
     
-    output$commonLinks <- renderPrint({
+    output$commonLinks <- DT::renderDataTable({
       load(paste0("./NetworkData/",input$select))
       data$edges$pairs <- paste(data$edges$from, data$edges$to)
+      
+      
       gaudinier$edges$pairs <- paste(gaudinier$edges$from, gaudinier$edges$to)
-      data$edges[intersect(data$edges$pairs, gaudinier$edges$pairs),]
-      })
+      
+      commonLinks <- intersect(gaudinier$edges$pairs, data$edges$pairs)
+      data$edges[data$edges$pairs %in% commonLinks,c("from", "to")]
+    })
+    
+    output$commonNodes <- DT::renderDataTable({
+      load(paste0("./NetworkData/",input$select))
+      data$nodes[data$nodes$id %in% gaudinier$nodes$id,c("Ontology", "description", "group", "ranking")]
+    })
 }
 
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
