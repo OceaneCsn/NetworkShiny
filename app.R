@@ -27,6 +27,7 @@ files <- lapply(split(listFiles, names(listFiles)), unname)
 load(paste0("./NetworkData/NitrateDEGenes_CO2-N.RData"))
 
 load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
+load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
 
 
 ui <- dashboardPage(skin="black",
@@ -36,7 +37,8 @@ ui <- dashboardPage(skin="black",
       sidebarMenu(
         menuItem("Network", tabName = "Network", icon = icon("project-diagram")),
         menuItem("Expression database", tabName = "Expression_data", icon = icon("seedling")),
-        menuItem("Differential Expression database", tabName = "DEGs", icon = icon("seedling"))
+        menuItem("Differential Expression database", tabName = "DEGs", icon = icon("table")),
+        menuItem("Compare 2 networks", tabName = "Comparaison", icon = icon("greater-than-equal"))
       )
     ),
     
@@ -85,16 +87,40 @@ ui <- dashboardPage(skin="black",
                 fixedRow(
                   column(
                     width = 10,
+                    h3("See which genes aree differentially expressed in one transcriptome comparison :"),
                     selectInput("comparison", label=h3("Select differentiel expression analysis"), choices = names(DEGs)),
                     DT::dataTableOutput("genesComp"))
                   ),
                   column(
                     width = 4,
+                    h3("For a gene, find in which transcriptome comparison it is differentially expressed :"),
                     textInput("geneToSearch", "Ask me a gene! (AGI)", value = "AT1G08090"),
                     verbatimTextOutput("comparisonsDEG")
                   )
+                ),
+        
+        tabItem(tabName = "Comparaison",
+                
+                selectInput("select1", label = h3("Select first network data"), width = 600,
+                            choices = files, selected="NitrateDEGenes_CO2-N.RData"),
+                
+                selectInput("select2", label = h3("Select second network data"), width = 600,
+                            choices = files, selected="NitrateDEGenes_N.RData"),
+                
+                fixedRow(
+                  column(
+                    width = 6,
+                    h3("Networks intersection :"),visNetworkOutput("netIntersection", height = "1000px")
+                    )
+                  ,
+                  column(
+                    width = 5,
+                    h2("Common links :"),
+                    DT::dataTableOutput("commonLinks12"), h2('Common genes : '),
+                    DT::dataTableOutput("commonNodes12")
+                  )
                 )
-      
+        )
    
         )
       )
@@ -251,8 +277,6 @@ server <- function(input, output, session) {
     output$commonLinks <- DT::renderDataTable({
       load(paste0("./NetworkData/",input$select))
       data$edges$pairs <- paste(data$edges$from, data$edges$to)
-      
-      
       gaudinier$edges$pairs <- paste(gaudinier$edges$from, gaudinier$edges$to)
       
       commonLinks <- intersect(gaudinier$edges$pairs, data$edges$pairs)
@@ -262,6 +286,63 @@ server <- function(input, output, session) {
     output$commonNodes <- DT::renderDataTable({
       load(paste0("./NetworkData/",input$select))
       data$nodes[data$nodes$id %in% gaudinier$nodes$id,c("Ontology", "description", "group", "ranking")]
+    })
+    
+    output$netIntersection <- renderVisNetwork({
+      load(paste0("./NetworkData/",input$select1))
+      network1 <- igraph::graph_from_data_frame(d = data$edges)
+      
+      load(paste0("./NetworkData/",input$select2))
+      network2 <- igraph::graph_from_data_frame(d = data$edges)
+      
+      inter <- igraph::intersection(network1, network2, keep.all.vertices=F)
+      dataInter <- networkData(inter, ontologies)
+      dataInter$nodes$label <- dataInter$nodes$Ontology
+      
+      nScores <- NitrateGenes(dataInter$nodes$id, nGenes, ontologies)
+      dataInter$nodes$group<- nScores[match(dataInter$nodes$id, nScores$Gene), "NitrateScore"]
+      
+      
+      visNetwork(nodes = dataInter$nodes, edges = dataInter$edges)%>% 
+      visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
+      visPhysics(solver = "forceAtlas2Based", timestep = 0.6, minVelocity=12, 
+                 maxVelocity = 10, stabilization = F)%>% 
+      visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = F)%>% 
+      visEvents(click = "function(nodes){
+                Shiny.onInputChange('click', nodes.nodes);
+                ;}")%>%  visNodes(borderWidth=0.5, font = list("size"=35))  %>% visInteraction(hover = TRUE)%>% visGroups(groupname = "6", size = 28, color = "#660000") %>% 
+      visGroups(groupname = "5", color = "#990000")%>% 
+      visGroups(groupname = "4", color = "#cc0000")%>% 
+      visGroups(groupname = "3", color = "#e06666")%>% 
+      visGroups(groupname = "2", color = "#ea9999")%>% 
+      visGroups(groupname = "1", color = "#f4cccc")%>% 
+      visGroups(groupname = "0", color = "#ffffff")%>% 
+      visGroups(groupname = "7", color = "#330000")
+      
+      
+    })
+    
+    output$commonNodes12 <- DT::renderDataTable({
+      
+      load(paste0("./NetworkData/",input$select1))
+      data1 <- data
+
+      load(paste0("./NetworkData/",input$select2))
+
+      data1$nodes[data1$nodes$id %in% data$nodes$id,c("Ontology", "description", "group", "ranking")]
+    })
+    
+    output$commonLinks12 <- DT::renderDataTable({
+      load(paste0("./NetworkData/",input$select1))
+      network1 <- igraph::graph_from_data_frame(d = data$edges)
+      
+      load(paste0("./NetworkData/",input$select2))
+      network2 <- igraph::graph_from_data_frame(d = data$edges)
+      
+      inter <- igraph::intersection(network1, network2, keep.all.vertices=F)
+      dataInter <- networkData(inter, ontologies)
+      
+      dataInter$edges[,c("from", "to")]
     })
 }
 

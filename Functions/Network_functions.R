@@ -102,7 +102,7 @@ plotNetwork <- function(data){
     visGroups(groupname = "Regulator", size = 28,
               color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
     visGroups(groupname = "Target Gene", color = "#77EEAA") %>% 
-    visNodes(borderWidth=0.5) 
+    visNodes(borderWidth=0.5, font=list("size"=36)) 
 }
 
 # getName <- function(gene, ontologies){
