@@ -3,6 +3,8 @@ library(ggplot2)
 library(igraph)
 library(GENIE3)
 library(knitr)
+
+
 PLN_network <- function(data, DEGenes, plot_path=F){
   # covariables
   groups <- str_split_fixed(colnames(data), "_", 2)[,1]
@@ -69,7 +71,7 @@ getNet <- function(mat, fixedLinkNumber=NA, top=0.05){
   return(g)
 }
 
-networkData <- function(net, ontologies){
+networkData <- function(net, ontologies, TF){
   ont <- ontologies[match(V(net)$name, ontologies$ensembl_gene_id),]
   data <- toVisNetworkData(net)
   

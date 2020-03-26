@@ -19,6 +19,7 @@ load("./Data/OntologyAllGenes.RData")
 load("./Data/normalized.count_At.RData")
 load("./Data/NitrateGenes.RData")
 load("./Data/DEGsListsFiltered.RData")
+load("./Data/PlnTFBDRegulatorsList.RData")
 
 listFiles <- list.files("./NetworkData/", full.names = F)
 names(listFiles) = listFiles
@@ -296,7 +297,7 @@ server <- function(input, output, session) {
       network2 <- igraph::graph_from_data_frame(d = data$edges)
       
       inter <- igraph::intersection(network1, network2, keep.all.vertices=F)
-      dataInter <- networkData(inter, ontologies)
+      dataInter <- networkData(inter, ontologies, TF)
       dataInter$nodes$label <- dataInter$nodes$Ontology
       
       nScores <- NitrateGenes(dataInter$nodes$id, nGenes, ontologies)
@@ -340,7 +341,7 @@ server <- function(input, output, session) {
       network2 <- igraph::graph_from_data_frame(d = data$edges)
       
       inter <- igraph::intersection(network1, network2, keep.all.vertices=F)
-      dataInter <- networkData(inter, ontologies)
+      dataInter <- networkData(inter, ontologies, TF)
       
       dataInter$edges[,c("from", "to")]
     })
