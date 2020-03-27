@@ -93,11 +93,10 @@ networkData <- function(net, ontologies, TF){
 
 plotNetwork <- function(data){
   visNetwork(nodes = data$nodes, edges = data$edges)%>% 
-    #visEdges(smooth = FALSE, color = '#333366') %>% 
     visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
     visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
                maxVelocity = 10, stabilization = F)%>%
-    visOptions(selectedBy = "group", highlightNearest = TRUE,nodesIdSelection  = TRUE, collapse = TRUE)%>% 
+    visOptions(selectedBy = "group", highlightNearest = F, nodesIdSelection  = TRUE, collapse = F)%>% 
     visEvents(click = "function(nodes){
                   Shiny.onInputChange('click', nodes.nodes);
                   ;}") %>% 
@@ -106,10 +105,6 @@ plotNetwork <- function(data){
     visGroups(groupname = "Target Gene", color = "#77EEAA") %>% 
     visNodes(borderWidth=0.5, font=list("size"=36)) 
 }
-
-# getName <- function(gene, ontologies){
-#   if(is.na)
-# }
 
 NitrateGenes <- function(genesK, nGenes, ontologies){
   res <- data.frame(Gene = genesK)

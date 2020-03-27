@@ -40,7 +40,8 @@ ui <- dashboardPage(skin="black",
         menuItem("Network", tabName = "Network", icon = icon("project-diagram")),
         menuItem("Expression database", tabName = "Expression_data", icon = icon("seedling")),
         menuItem("Differential Expression database", tabName = "DEGs", icon = icon("table")),
-        menuItem("Compare 2 networks", tabName = "Comparaison", icon = icon("greater-than-equal"))
+        menuItem("Compare 2 networks", tabName = "Comparaison", icon = icon("greater-than-equal")),
+        menuItem("Communities discovery", tabName = "Clustering", icon = icon("circle-notch"))
       )
     ),
     
@@ -122,6 +123,26 @@ ui <- dashboardPage(skin="black",
                     DT::dataTableOutput("commonNodes12")
                   )
                 )
+        ),
+        tabItem(tabName = "Clustering",
+
+                selectInput("selectClusterNetwork", label = h3("Select network data"), width = 600,
+                            choices = files, selected="NitratesDEGenes_N.RData"),
+                selectInput("Module", label = h3("Select module"), width = 600,
+                            choices = NA),
+                
+                fixedRow(
+                  column(
+                    width = 5,
+                    h3("Network modules :"),visNetworkOutput("netClustering", height = "1000px")
+                  )
+                  ,
+                  column(
+                    width = 5,
+                    h2("Genes in that Community :"),
+                    DT::dataTableOutput("communityList")
+                  )
+                )
         )
    
         )
@@ -136,13 +157,18 @@ server <- function(input, output, session) {
   
     #reactive({load(paste0("./NetworkData/",input$select))})
     
+  
+  data <- reactive({
+    load(paste0("./NetworkData/",input$select))
+    data$nodes$label <- data$nodes$Ontology
+    data
+  })
+  
+  
+  
     output$network <- renderVisNetwork({
-      load(paste0("./NetworkData/",input$select))
       
-      
-      
-      data$nodes$label <- data$nodes$Ontology
-      visNetwork(nodes = data$nodes, edges = data$edges)%>% 
+      visNetwork(nodes = data()$nodes, edges = data()$edges)%>% 
         visEdges(smooth = FALSE, arrows = 'to', color = '#333366') %>% 
         # visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10, 
         #            maxVelocity = 10, stabilization = F)%>%
@@ -160,8 +186,7 @@ server <- function(input, output, session) {
     })
     
     observe({
-      visNetworkProxy("network") %>%
-        visFocus(id = input$geneVis, scale = 1) %>% visSelectNodes(id = input$geneVis)
+      visNetworkProxy("network") %>% visFocus(id = input$geneVis, scale = 1) %>% visSelectNodes(id = input$geneVis)
     })
     
     output$SelectedGene <- renderPrint({
@@ -169,42 +194,38 @@ server <- function(input, output, session) {
     })
 
     output$Ontologies <- DT::renderDataTable({
-      load(paste0("./NetworkData/",input$select))
-      
 
         if(is.null(input$click)){
-            data$nodes
+            data()$nodes
         }
         else{
-          neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
-                                      data$edges[grepl(input$click[1], data$edges$to),]$from))
-            data$nodes[c(input$click[1], neighboors),]
+          neighboors <- unique( union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
+                                      data()$edges[grepl(input$click[1], data()$edges$to),]$from))
+            data()$nodes[c(input$click[1], neighboors),]
         }})
     
     output$nitrate <- DT::renderDataTable({
-      load(paste0("./NetworkData/",input$select))
-      
-      
+
       if(is.null(input$click)){
-        res <- NitrateGenes(data$nodes$id, nGenes, ontologies)
+        res <- NitrateGenes(data()$nodes$id, nGenes, ontologies)
         res[,!grepl("_", colnames(res))]
       }
       else{
-        neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
-                                    data$edges[grepl(input$click[1], data$edges$to),]$from))
+        neighboors <- unique( union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
+                                    data()$edges[grepl(input$click[1], data()$edges$to),]$from))
         res <- NitrateGenes(c(input$click[1], neighboors), nGenes, ontologies)
         res[,!grepl("_", colnames(res))]
       }})
     
     output$Ranking <- DT::renderDataTable({
-      load(paste0("./NetworkData/",input$select))
-      net <- igraph::graph_from_data_frame(d = data$edges)
+
+      net <- igraph::graph_from_data_frame(d = data()$edges)
       importance <- (degree(net)/max(degree(net))+betweenness(net)/max(betweenness(net)))*0.5
-      data$nodes$Betweenness <- betweenness(net)[match(data$nodes$id, names(betweenness(net)))]
-      data$nodes$Degree <- degree(net)[match(data$nodes$id, names(degree(net)))]
-      data$nodes$Centrality <- importance[match(data$nodes$id, names(importance))]
-      data$nodes$Rank <- order(-data$nodes$Centrality)
-      data$nodes[order(-data$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
+      data()$nodes$Betweenness <- betweenness(net)[match(data()$nodes$id, names(betweenness(net)))]
+      data()$nodes$Degree <- degree(net)[match(data()$nodes$id, names(degree(net)))]
+      data()$nodes$Centrality <- importance[match(data()$nodes$id, names(importance))]
+      data()$nodes$Rank <- order(-data()$nodes$Centrality)
+      data()$nodes[order(-data()$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
     
     })
     
@@ -215,17 +236,15 @@ server <- function(input, output, session) {
     
     
     output$NetStats <- renderPlot({
-      load(paste0("./NetworkData/",input$select))
-      net <- igraph::graph_from_data_frame(d = data$edges)
+      net <- igraph::graph_from_data_frame(d = data()$edges)
       netStats(net)
     })
     
     
     observeEvent(input$colorFromNitrate,{
-      load(paste0("./NetworkData/",input$select))
-      data$nodes$label <- data$nodes$Ontology
-      newNodes <- data$nodes
-      nScores <- NitrateGenes(data$nodes$id, nGenes, ontologies)
+
+      newNodes <- data()$nodes
+      nScores <- NitrateGenes(data()$nodes$id, nGenes, ontologies)
       newNodes$group<- nScores[match(newNodes$id, nScores$Gene), "NitrateScore"]
       visNetworkProxy("network") %>%
         visUpdateNodes(nodes = newNodes) %>% visGroups(groupname = "6", size = 28,
@@ -241,13 +260,13 @@ server <- function(input, output, session) {
     
     
     output$heatmap <- renderPlotly({
-      load(paste0("./NetworkData/",input$select))
+
       if(is.null(input$click)){
         heatmapPerso(normalized.count, conds = "all", genes = c("AT1G01150", "AT1G01590"))
       }
       else{
-        neighboors <- unique( union(data$edges[grepl(input$click[1], data$edges$from),]$to,
-                                    data$edges[grepl(input$click[1], data$edges$to),]$from))
+        neighboors <- unique( union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
+                                    data()$edges[grepl(input$click[1], data()$edges$to),]$from))
         heatmapPerso(normalized.count, conds = "all", genes = c(input$click[1], neighboors))
       }
       
@@ -345,6 +364,35 @@ server <- function(input, output, session) {
       dataInter <- networkData(inter, ontologies, TF)
       
       dataInter$edges[,c("from", "to")]
+    })
+    
+    #################### Clustering network
+    
+    
+    output$netClustering <- renderVisNetwork({
+      plotNetwork(dataClust())
+    })
+
+    
+    dataClust <- reactive({
+      load(paste0("./NetworkData/",input$selectClusterNetwork))
+      net <- igraph::graph_from_data_frame(d = data$edges, directed = F)
+      communities <- cluster_louvain(net)
+      communities$membership
+      membership <- membership(communities)
+      data$nodes$group <- membership[match(data$nodes$id, names(membership))]
+      updateSelectInput(session, "Module", choices = unique(membership))
+      data$nodes$label <- data$nodes$Ontology
+      data
+    })
+    
+    observe({
+      genes <- dataClust()$nodes[dataClust()$nodes$group ==input$Module,]$id
+      visNetworkProxy("netClustering") %>% visSelectNodes( genes, highlightEdges = TRUE, clickEvent = T)%>% visOptions( highlightNearest = list("hideColor" = rgb(0.8,0.8,0.8,0.5)))
+    })
+    
+    output$communityList <- DT::renderDataTable({
+      dataClust()$nodes[dataClust()$nodes$group ==input$Module,]
     })
 }
 
