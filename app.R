@@ -25,13 +25,14 @@ listFiles <- list.files("./NetworkData/", full.names = F)
 names(listFiles) = listFiles
 files <- lapply(split(listFiles, names(listFiles)), unname)
 
-load(paste0("./NetworkData/NitrateDEGenes_CO2-N.RData"))
+load(paste0("./NetworkData/NitratesDEGenes_CO2-N.RData"))
 
 load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
 load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
 
 
 ui <- dashboardPage(skin="black",
+                    
   
     dashboardHeader(title = "Network visualisation"),
     dashboardSidebar(
@@ -53,13 +54,13 @@ ui <- dashboardPage(skin="black",
           hr(),
           fixedRow(
               column(
-                  width = 6,
+                  width = 5,
                   textInput("geneVis", "Visualize a precise gene (AGI)", value = ""),
-                  visNetworkOutput("network", height = "1000px"),
+                  visNetworkOutput("network", height = "800px"),
                   actionButton("colorFromNitrate", "Color according to nitrate score")
               ),
               column(
-                width = 6,
+                width = 4,
                 tabsetPanel(type = "tabs",
                             tabPanel("Ontologies", DT::dataTableOutput("Ontologies")),
                             tabPanel("Ontologies Nitrate", DT::dataTableOutput("nitrate")),
@@ -80,17 +81,17 @@ ui <- dashboardPage(skin="black",
         tabItem(tabName = "Expression_data",
               textInput("gene", "Ask me a gene! (AGI)", value = "AT1G01020"),
               br(),
-              plotOutput("expression_plot_specific")
+              plotOutput("expression_plot_specific", width="1400px")
               
         ),
         
         tabItem(tabName = "DEGs",
                 fixedRow(
                   column(
-                    width = 10,
+                    width = 6,
                     h3("See which genes aree differentially expressed in one transcriptome comparison :"),
                     selectInput("comparison", label=h3("Select differentiel expression analysis"), choices = names(DEGs)),
-                    DT::dataTableOutput("genesComp"))
+                    DT::dataTableOutput("genesComp", width = "400px"))
                   ),
                   column(
                     width = 4,
@@ -103,14 +104,14 @@ ui <- dashboardPage(skin="black",
         tabItem(tabName = "Comparaison",
                 
                 selectInput("select1", label = h3("Select first network data"), width = 600,
-                            choices = files, selected="NitrateDEGenes_CO2-N.RData"),
+                            choices = files, selected="NitratesDEGenes_CO2-N.RData"),
                 
                 selectInput("select2", label = h3("Select second network data"), width = 600,
-                            choices = files, selected="NitrateDEGenes_N.RData"),
+                            choices = files, selected="NitratesDEGenes_N.RData"),
                 
                 fixedRow(
                   column(
-                    width = 6,
+                    width = 5,
                     h3("Networks intersection :"),visNetworkOutput("netIntersection", height = "1000px")
                     )
                   ,
