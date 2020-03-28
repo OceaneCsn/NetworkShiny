@@ -139,12 +139,16 @@ ui <- dashboardPage(skin="black",
                   ,
                   column(
                     width = 5,
-                    h2("Genes in that Community :"),
-                    DT::dataTableOutput("communityList")
+                    tabsetPanel(type = "tabs",
+                                tabPanel("Genes list", h2("Genes in that Community :"),
+                                         DT::dataTableOutput("communityList")),
+                                tabPanel("GO enrichment", h2("Ontologies enriched in this cluster : "), plotOutput("GOEnrich", height = 500)),
+                                tabPanel("GO enrichment comparison", h2("Comparison of the communitites : "), plotOutput("GOEnrichComp", height=500))
+                    ),
+                    
                   )
                 )
-        )
-   
+          )
         )
       )
     )
@@ -393,6 +397,19 @@ server <- function(input, output, session) {
     
     output$communityList <- DT::renderDataTable({
       dataClust()$nodes[dataClust()$nodes$group ==input$Module,]
+    })
+    
+    output$GOEnrich <- renderPlot({
+      ids <- as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==input$Module,]$id, ontologies$ensembl_gene_id),]$entrezgene_id)
+      OntologyEnrich(ids, universe)
+    })
+    
+    output$GOEnrichComp <- renderPlot({
+      idsList <- list()
+      for(k in unique(dataClust()$nodes$group)){
+        idsList[[as.character(k)]] <- na.omit(as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==k,]$id, ontologies$ensembl_gene_id),]$entrezgene_id))
+      }
+      compareOnt(idsList=idsList, universe)
     })
 }
 

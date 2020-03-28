@@ -3,7 +3,8 @@ library(ggplot2)
 library(igraph)
 library(GENIE3)
 library(knitr)
-
+library(clusterProfiler)
+library(org.At.tair.db)
 
 PLN_network <- function(data, DEGenes, plot_path=F){
   # covariables
@@ -115,4 +116,32 @@ NitrateGenes <- function(genesK, nGenes, ontologies){
   res$NitrateScore <- rowSums(res[,grepl("_", colnames(res))])
   res <- res[order(-res$NitrateScore),]
   return(res)
+}
+
+OntologyEnrich <- function(ids, universe, plot = T, simCutoff = 0.8){
+  # ids and universe must be entrez gene ids
+  ego <- enrichGO(gene = ids,
+                  OrgDb = org.At.tair.db,
+                  ont = "BP",
+                  universe = universe,
+                  pAdjustMethod = "BH",
+                  pvalueCutoff  = 0.01,
+                  qvalueCutoff  = 0.05,
+                  readable = TRUE)
+  
+  # Elimine les redondances, en fusionnant les GO terms dont la similarite excede le cutoff
+  simpOnt <- clusterProfiler::simplify(ego, cutoff=simCutoff, by="p.adjust", select_fun=min)
+  result <- simpOnt@result
+  print(barplot(simpOnt, showCategory = 40, font.size = 10))
+  return(emapplot(simpOnt, font.size = 30, layout = "kk"))
+  
+}
+
+compareOnt <- function(idsList, universe, simCutoff = 0.8){
+  ckreg <- compareCluster(geneCluster = idsList, fun = "enrichGO", OrgDb = org.At.tair.db, ont = "BP", pAdjustMethod = "BH", 
+                          pvalueCutoff = 0.01, qvalueCutoff = 0.05, universe = as.character(universe))
+  ckreg@compareClusterResult
+  simCk <- clusterProfiler::simplify(ckreg, cutoff=simCutoff, by="p.adjust", select_fun=min)
+  resCk <- simCk@compareClusterResult
+  return(clusterProfiler::dotplot(simCk, x = ~Cluster, showCategory = 25, font.size = 7))
 }
