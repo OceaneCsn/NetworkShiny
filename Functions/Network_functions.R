@@ -133,8 +133,8 @@ OntologyEnrich <- function(ids, universe, plot = T, simCutoff = 0.8){
   simpOnt <- clusterProfiler::simplify(ego, cutoff=simCutoff, by="p.adjust", select_fun=min)
   result <- simpOnt@result
   print(barplot(simpOnt, showCategory = 40, font.size = 10))
-  return(emapplot(simpOnt, font.size = 30, layout = "kk"))
-  
+  print(emapplot(simpOnt, font.size = 30, layout = "kk"))
+  return(simpOnt)
 }
 
 compareOnt <- function(idsList, universe, simCutoff = 0.8){
@@ -143,5 +143,5 @@ compareOnt <- function(idsList, universe, simCutoff = 0.8){
   ckreg@compareClusterResult
   simCk <- clusterProfiler::simplify(ckreg, cutoff=simCutoff, by="p.adjust", select_fun=min)
   resCk <- simCk@compareClusterResult
-  return(clusterProfiler::dotplot(simCk, x = ~Cluster, showCategory = 25, font.size = 7))
+  print(clusterProfiler::dotplot(simCk, x = ~Cluster, showCategory = 30, font.size = 15))
 }

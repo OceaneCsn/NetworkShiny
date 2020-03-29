@@ -25,7 +25,7 @@ listFiles <- list.files("./NetworkData/", full.names = F)
 names(listFiles) = listFiles
 files <- lapply(split(listFiles, names(listFiles)), unname)
 
-load(paste0("./NetworkData/NitratesDEGenes_CO2-N.RData"))
+load(paste0("./NetworkData/CO2DEGenes_faibleNitrate_CO2-N.RData"))
 
 load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
 load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
@@ -46,11 +46,11 @@ ui <- dashboardPage(skin="black",
     ),
     
     dashboardBody(
-      
+      tags$head(tags$style(".shiny-progress {top: 50% !important;left: 50% !important;margin-top: -100px !important;margin-left: -250px !important; color: blue;font-size: 20px;font-style: italic;}")),
       tabItems(
         tabItem(tabName = "Network",
                 selectInput("select", label = h3("Select network data"), width = 700,
-                            choices = files, selected="NitrateDEGenes_CO2-N.RData"),
+                            choices = files, selected="CO2DEGenes_faibleNitrate_CO2-N.RData"),
                 
           hr(),
           fixedRow(
@@ -127,13 +127,13 @@ ui <- dashboardPage(skin="black",
         tabItem(tabName = "Clustering",
 
                 selectInput("selectClusterNetwork", label = h3("Select network data"), width = 600,
-                            choices = files, selected="NitratesDEGenes_N.RData"),
+                            choices = files, selected="CO2DEGenes_faibleNitrate_CO2-N.RData"),
                 selectInput("Module", label = h3("Select module"), width = 600,
                             choices = NA),
                 
                 fixedRow(
                   column(
-                    width = 5,
+                    width = 4,
                     h3("Network modules :"),visNetworkOutput("netClustering", height = "1000px")
                   )
                   ,
@@ -142,8 +142,8 @@ ui <- dashboardPage(skin="black",
                     tabsetPanel(type = "tabs",
                                 tabPanel("Genes list", h2("Genes in that Community :"),
                                          DT::dataTableOutput("communityList")),
-                                tabPanel("GO enrichment", h2("Ontologies enriched in this cluster : "), plotOutput("GOEnrich", height = 500)),
-                                tabPanel("GO enrichment comparison", h2("Comparison of the communitites : "), plotOutput("GOEnrichComp", height=500))
+                                tabPanel("GO enrichment", h2("Ontologies enriched in this cluster : "), plotlyOutput("GOEnrich", width = 900, height = 900)),
+                                tabPanel("GO enrichment comparison", h2("Comparison of the communitites : "), plotOutput("GOEnrichComp", height=900))
                     ),
                     
                   )
@@ -399,9 +399,18 @@ server <- function(input, output, session) {
       dataClust()$nodes[dataClust()$nodes$group ==input$Module,]
     })
     
-    output$GOEnrich <- renderPlot({
+    output$GOEnrich <- renderPlotly({
       ids <- as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==input$Module,]$id, ontologies$ensembl_gene_id),]$entrezgene_id)
-      OntologyEnrich(ids, universe)
+      withProgress(message = "Ontologies Enrichment", {simOnt <- OntologyEnrich(ids, as.character(universe))})
+      simOnt@result <- simOnt@result[order(-simOnt@result$p.adjust),]
+      values <- str_split_fixed(simOnt@result$GeneRatio, "/", 2)
+      simOnt@result$GeneRatio <- as.numeric(values[,1])/ as.numeric(values[,2])
+      ggplotly(ggplot(data= simOnt@result, aes(x=Description, y=GeneRatio, fill=p.adjust)) + geom_bar(stat = "identity")+ coord_flip() +
+                 ggtitle(paste("Enriched Ontologies for module", input$Module)) + ylab("") + xlab("Gene Ratio")+
+                 theme(plot.title = element_text(size=15, face="bold"),
+                       legend.title = element_text(size = 20, face="bold"), legend.text = element_text(size=15),
+                       axis.text.y = element_text(size = 15, angle = 20), axis.text.x = element_text(size =8, angle = 0, hjust = 0, colour = "grey50"),
+                       axis.title.y=element_blank()) )
     })
     
     output$GOEnrichComp <- renderPlot({
@@ -409,7 +418,7 @@ server <- function(input, output, session) {
       for(k in unique(dataClust()$nodes$group)){
         idsList[[as.character(k)]] <- na.omit(as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==k,]$id, ontologies$ensembl_gene_id),]$entrezgene_id))
       }
-      compareOnt(idsList=idsList, universe)
+      withProgress(message = 'Ontologies enrichment comparison', {compareOnt(idsList=idsList, universe)})
     })
 }
 
