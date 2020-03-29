@@ -120,6 +120,7 @@ NitrateGenes <- function(genesK, nGenes, ontologies){
 
 OntologyEnrich <- function(ids, universe, plot = T, simCutoff = 0.8){
   # ids and universe must be entrez gene ids
+  print(ids)
   ego <- enrichGO(gene = ids,
                   OrgDb = org.At.tair.db,
                   ont = "BP",
@@ -128,12 +129,11 @@ OntologyEnrich <- function(ids, universe, plot = T, simCutoff = 0.8){
                   pvalueCutoff  = 0.01,
                   qvalueCutoff  = 0.05,
                   readable = TRUE)
-  
+  print(ego)
   # Elimine les redondances, en fusionnant les GO terms dont la similarite excede le cutoff
   simpOnt <- clusterProfiler::simplify(ego, cutoff=simCutoff, by="p.adjust", select_fun=min)
-  result <- simpOnt@result
-  print(barplot(simpOnt, showCategory = 40, font.size = 10))
-  print(emapplot(simpOnt, font.size = 30, layout = "kk"))
+  #print(barplot(simpOnt, showCategory = 40, font.size = 10))
+  #print(emapplot(simpOnt, font.size = 30, layout = "kk"))
   return(simpOnt)
 }
 

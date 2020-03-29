@@ -401,6 +401,7 @@ server <- function(input, output, session) {
     
     output$GOEnrich <- renderPlotly({
       ids <- as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==input$Module,]$id, ontologies$ensembl_gene_id),]$entrezgene_id)
+      print(ids)
       withProgress(message = "Ontologies Enrichment", {simOnt <- OntologyEnrich(ids, as.character(universe))})
       simOnt@result <- simOnt@result[order(-simOnt@result$p.adjust),]
       values <- str_split_fixed(simOnt@result$GeneRatio, "/", 2)
@@ -418,7 +419,7 @@ server <- function(input, output, session) {
       for(k in unique(dataClust()$nodes$group)){
         idsList[[as.character(k)]] <- na.omit(as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==k,]$id, ontologies$ensembl_gene_id),]$entrezgene_id))
       }
-      withProgress(message = 'Ontologies enrichment comparison', {compareOnt(idsList=idsList, universe)})
+      withProgress(message = 'Ontologies enrichment comparison', {compareOnt(idsList=idsList, as.character(universe))})
     })
 }
 
