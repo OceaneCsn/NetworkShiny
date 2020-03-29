@@ -31,6 +31,9 @@ load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
 load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
 
 
+universe <- ontologies$entrezgene_id
+
+
 ui <- dashboardPage(skin="black",
                     
   
