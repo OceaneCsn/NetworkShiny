@@ -34,6 +34,12 @@ load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
 universe <- ontologies$entrezgene_id
 
 
+colorEdge <- function(tested, validated){
+  if(tested & validated) return("red")
+  if(tested & !validated) return("black")
+  if(!tested & !validated) return("white")
+}
+
 ui <- dashboardPage(skin="black",
                     
   
@@ -75,7 +81,14 @@ ui <- dashboardPage(skin="black",
                                      h2("Combinatorial interactions between transcription factors and promoters of genes associated with nitrogen metabolism, signalling and nitrogen-associated processes"),
                                      h3("Common links with state of the art network :"),
                                      DT::dataTableOutput("commonLinks"), h3('Common genes with state of the art network : '),
-                                     DT::dataTableOutput("commonNodes"))
+                                     DT::dataTableOutput("commonNodes")),
+                            tabPanel("DAP-Seq validated interactions", checkboxInput("edgesDap", "Color edges from DAP-Seq", FALSE), 
+                                     h3("To check if the predicted target's promoters have the regulator's binding motif"),
+                                     h2("Interactions validated by DAP-Seq :"),
+                                     DT::dataTableOutput("edgesListDap", width = 700),
+                                     h3("Taux de validation : "),
+                                     textOutput("dapStats")
+                                     )
                             
                             #Pearson and Spearman Rank Correlation of transcription factor and target interactions across publically available nitrogen availability microarray experiments
                             )
@@ -85,7 +98,7 @@ ui <- dashboardPage(skin="black",
         tabItem(tabName = "Expression_data",
               textInput("gene", "Ask me a gene! (AGI)", value = "AT1G01020"),
               br(),
-              plotOutput("expression_plot_specific", width="1400px")
+              plotOutput("expression_plot_specific", width="1400px") 
               
         ),
         
@@ -162,16 +175,15 @@ ui <- dashboardPage(skin="black",
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-    #reactive({load(paste0("./NetworkData/",input$select))})
-    
-  
+
   data <- reactive({
     load(paste0("./NetworkData/",input$select))
     data$nodes$label <- data$nodes$Ontology
+    data$edges$color <-'#333366'
+    data$edges$Regulator_Name <- ontologies[match(data$edges$from, ontologies$ensembl_gene_id),]$external_gene_name
+    data$edges$Target_Name <- ontologies[match(data$edges$to, ontologies$ensembl_gene_id),]$external_gene_name
     data
   })
-  
-  
   
     output$network <- renderVisNetwork({
       
@@ -228,11 +240,14 @@ server <- function(input, output, session) {
 
       net <- igraph::graph_from_data_frame(d = data()$edges)
       importance <- (degree(net)/max(degree(net))+betweenness(net)/max(betweenness(net)))*0.5
-      data()$nodes$Betweenness <- betweenness(net)[match(data()$nodes$id, names(betweenness(net)))]
-      data()$nodes$Degree <- degree(net)[match(data()$nodes$id, names(degree(net)))]
-      data()$nodes$Centrality <- importance[match(data()$nodes$id, names(importance))]
-      data()$nodes$Rank <- order(-data()$nodes$Centrality)
-      data()$nodes[order(-data()$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
+      
+      data <- data()
+      
+      data$nodes$Betweenness <- betweenness(net)[match(data$nodes$id, names(betweenness(net)))]
+      data$nodes$Degree <- degree(net)[match(data$nodes$id, names(degree(net)))]
+      data$nodes$Centrality <- importance[match(data$nodes$id, names(importance))]
+      data$nodes$Rank <- order(-data$nodes$Centrality)
+      data$nodes[order(-data$nodes$Centrality),c("description", "Ontology", "Centrality", "Betweenness", "Degree")]
     
     })
     
@@ -423,6 +438,47 @@ server <- function(input, output, session) {
         idsList[[as.character(k)]] <- na.omit(as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group==k,]$id, ontologies$ensembl_gene_id),]$entrezgene_id))
       }
       withProgress(message = 'Ontologies enrichment comparison', {compareOnt(idsList=idsList, as.character(universe))})
+    })
+    
+    ####################################☻ DAPSeq functions
+    
+    observeEvent(input$edgesDap, {
+      
+      if(input$edgesDap){
+        data <- data()
+        data$edges$color <- mapply(colorEdge,  data$edges$testedByDapSeq, data$edges$DapSeqAproved)
+      visNetworkProxy("network") %>% visUpdateEdges(data$edges)%>% 
+        visGroups(groupname = "Regulator", size = 28,
+                  color = list("background" = "grey", "border"="#CCCCCC"), shape = "square") %>% 
+        visGroups(groupname = "Target Gene", color = "lightgrey") %>% 
+        visNodes(borderWidth=0.5, font=list("size"=36)) 
+       
+      }
+      
+      else{
+        visNetworkProxy("network")  %>%  visUpdateEdges(data()$edges) %>% visGroups(groupname = "Regulator", size = 28,
+                                             color = list("background" = "#003399", "border"="#FFFFCC"), shape = "square") %>% 
+          visGroups(groupname = "Target Gene", color = "#77EEAA") 
+      }
+       
+    })
+    
+    output$edgesListDap <- DT::renderDataTable({
+      dataDap <-data()$edges[data()$edges$DapSeqAproved,]
+      if(is.null(input$click)){
+        dataDap[,c("from", "Regulator_Name", "to", "Target_Name")]
+      }
+      else{
+       
+        dataDap[grepl(input$click, dataDap$from),c("from", "Regulator_Name", "to", "Target_Name")]
+      }
+      
+    })
+    
+    output$dapStats <- renderText({
+      paste("Interactions comportant un TF etudié par DAP-Seq : ", round(sum(data()$edges$testedByDapSeq)/dim(data()$edges)[1],3)*100,
+            "% (liens rouges + noirs). Parmis elles, ", round(sum(data()$edges$DapSeqAproved) / sum(data()$edges$testedByDapSeq),3)*100 ,
+            "% ont été démontrées par DAP-Seq (liens rouges).")
     })
 }
 
