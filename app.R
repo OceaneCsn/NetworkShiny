@@ -405,6 +405,7 @@ server <- function(input, output, session) {
       data$nodes$group <- membership[match(data$nodes$id, names(membership))]
       updateSelectInput(session, "Module", choices = unique(membership))
       data$nodes$label <- data$nodes$Ontology
+      data$edges$color <-'#333366'
       data
     })
     
