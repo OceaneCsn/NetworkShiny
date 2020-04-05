@@ -87,7 +87,8 @@ ui <- dashboardPage(skin="black",
                                      h2("Interactions validated by DAP-Seq :"),
                                      DT::dataTableOutput("edgesListDap", width = 700),
                                      h3("Taux de validation : "),
-                                     textOutput("dapStats")
+                                     textOutput("dapStats"),
+                                     checkboxInput("nlpTargets", "Color NLP7 DAP-Seq targets", FALSE)
                                      )
                             
                             #Pearson and Spearman Rank Correlation of transcription factor and target interactions across publically available nitrogen availability microarray experiments
@@ -441,7 +442,7 @@ server <- function(input, output, session) {
       withProgress(message = 'Ontologies enrichment comparison', {compareOnt(idsList=idsList, as.character(universe))})
     })
     
-    ####################################☻ DAPSeq functions
+    #################################### DAPSeq functions
     
     observeEvent(input$edgesDap, {
       
@@ -477,9 +478,26 @@ server <- function(input, output, session) {
     })
     
     output$dapStats <- renderText({
-      paste("Interactions comportant un TF etudié par DAP-Seq : ", round(sum(data()$edges$testedByDapSeq)/dim(data()$edges)[1],3)*100,
+      paste("Interactions comportant un TF etudie par DAP-Seq : ", round(sum(data()$edges$testedByDapSeq)/dim(data()$edges)[1],3)*100,
             "% (liens rouges + noirs). Parmis elles, ", round(sum(data()$edges$DapSeqAproved) / sum(data()$edges$testedByDapSeq),3)*100 ,
             "% ont été démontrées par DAP-Seq (liens rouges).")
+    })
+    
+    
+    observeEvent(input$nlpTargets, {
+      
+      if(input$nlpTargets){
+        data <- data()
+        data$nodes$group <- data$nodes$NLP_Target
+        
+        visNetworkProxy("network")%>% visUpdateNodes(data$nodes) %>%visGroups(groupname = "1", color = "darkred")
+      }
+      else{
+        visNetworkProxy("network")  %>%  visUpdateNodes(data()$nodes)  %>% visGroups(groupname = "Regulator", 
+                                                                                     size = 28, color = list("background" = "#003399", "border"="#FFFFCC"), 
+                                                                                     shape = "square") %>% 
+          visGroups(groupname = "Target Gene", color = "#77EEAA") 
+      }
     })
 }
 
