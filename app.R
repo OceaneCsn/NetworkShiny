@@ -142,12 +142,18 @@ ui <- dashboardPage(skin="black",
                 )
         ),
         tabItem(tabName = "Clustering",
-
-                selectInput("selectClusterNetwork", label = h3("Select network data"), width = 600,
-                            choices = files, selected="CO2DEGenes_faibleNitrate_CO2-N.RData"),
-                selectInput("Module", label = h3("Select module"), width = 600,
-                            choices = NA),
                 
+                column(width = 3, 
+                       selectInput("selectClusterNetwork", label = h3("Select network data"), width = 600,
+                                   choices = files, selected="CO2DEGenes_faibleNitrate_CO2-N.RData")),
+                column(width = 3, selectInput("clustType", label = h3("Select type of clustering"), width = 600,
+                                              choices = list("Topological clustering (Louvain)" = "louvain", "Expression clustering (COSEQ Poisson mixture models)"="coseq"),
+                                              selected = "louvain")),
+                
+                column(width = 3,
+                       selectInput("Module", label = h3("Select module"), width = 600,
+                                   choices = NA)),
+               
                 fixedRow(
                   column(
                     width = 4,
@@ -399,12 +405,17 @@ server <- function(input, output, session) {
     
     dataClust <- reactive({
       load(paste0("./NetworkData/",input$selectClusterNetwork))
-      net <- igraph::graph_from_data_frame(d = data$edges, directed = F)
-      communities <- cluster_louvain(net)
-      communities$membership
-      membership <- membership(communities)
-      data$nodes$group <- membership[match(data$nodes$id, names(membership))]
-      updateSelectInput(session, "Module", choices = unique(membership))
+      
+      if(input$clustType == "louvain"){
+        net <- igraph::graph_from_data_frame(d = data$edges, directed = F)
+        communities <- cluster_louvain(net)
+        membership <- membership(communities)
+        data$nodes$group <- membership[match(data$nodes$id, names(membership))]
+      }
+      if(input$clustType == "coseq"){
+        data$nodes$group <- data$nodes$coseqCluster
+      }
+      updateSelectInput(session, "Module", choices = data$nodes$group)
       data$nodes$label <- data$nodes$Ontology
       data$edges$color <-'#333366'
       data
@@ -489,7 +500,6 @@ server <- function(input, output, session) {
       if(input$nlpTargets){
         data <- data()
         data$nodes$group <- data$nodes$NLP_Target
-        
         visNetworkProxy("network")%>% visUpdateNodes(data$nodes) %>%visGroups(groupname = "1", color = "darkred")
       }
       else{
