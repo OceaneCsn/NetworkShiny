@@ -145,3 +145,23 @@ compareOnt <- function(idsList, universe, simCutoff = 0.8){
   resCk <- simCk@compareClusterResult
   print(clusterProfiler::dotplot(simCk, x = ~Cluster, showCategory = 30, font.size = 15))
 }
+
+
+getTargets <- function(tf, data){
+  targets <- data$edges[data$edges$from==tf,"to"]
+  names <- data$nodes[data$nodes$id %in% targets, "label"]
+  return(paste(names, collapse = ', '))
+}
+
+getTargetsNumber <- function(tf, data){
+  return(length(data$edges[data$edges$from==tf,"to"]))
+}
+
+colorEdge <- function(tested, validated) {
+  if (tested & validated)
+    return("red")
+  if (tested & !validated)
+    return("black")
+  if (!tested & !validated)
+    return("white")
+}
