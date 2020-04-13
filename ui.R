@@ -207,7 +207,8 @@ ui <- dashboardPage(
             width = 600,
             choices = list(
               "Topological clustering (Louvain)" = "louvain",
-              "Expression clustering (COSEQ Poisson mixture models)" = "coseq"
+              "Expression clustering (COSEQ Poisson mixture models)" = "coseq",
+              "Conistent modules between both" = "consensus"
             ),
             selected = "louvain"
           )
@@ -256,7 +257,6 @@ ui <- dashboardPage(
                 DT::dataTableOutput("topTFs")
               )
             ),
-            
           )
         )
       )

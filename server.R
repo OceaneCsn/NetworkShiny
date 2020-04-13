@@ -22,7 +22,7 @@ server <- function(input, output, session) {
     data$nodes$label <- data$nodes$Ontology
     data$edges$color <- '#333366'
     data$edges$Regulator_Name <-
-      ontologies[match(data$edges$from, ontologies$ensembl_gene_id),]$external_gene_name
+      ontologies[match(data$edges$from, ontologies$ensembl_gene_id), ]$external_gene_name
     data$nodes$description <-
       ifelse(
         grepl("\\[", data$nodes$description),
@@ -30,7 +30,7 @@ server <- function(input, output, session) {
         data$nodes$description
       )
     data$edges$Target_Name <-
-      ontologies[match(data$edges$to, ontologies$ensembl_gene_id),]$external_gene_name
+      ontologies[match(data$edges$to, ontologies$ensembl_gene_id), ]$external_gene_name
     data
   })
   
@@ -83,24 +83,24 @@ server <- function(input, output, session) {
     }
     else{
       neighboors <-
-        unique(union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
-                     data()$edges[grepl(input$click[1], data()$edges$to),]$from))
-      data()$nodes[c(input$click[1], neighboors),]
+        unique(union(data()$edges[grepl(input$click[1], data()$edges$from), ]$to,
+                     data()$edges[grepl(input$click[1], data()$edges$to), ]$from))
+      data()$nodes[c(input$click[1], neighboors), ]
     }
   })
   
   output$nitrate <- DT::renderDataTable({
     if (is.null(input$click)) {
       res <- NitrateGenes(data()$nodes$id, nGenes, ontologies)
-      res[,!grepl("_", colnames(res))]
+      res[, !grepl("_", colnames(res))]
     }
     else{
       neighboors <-
-        unique(union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
-                     data()$edges[grepl(input$click[1], data()$edges$to),]$from))
+        unique(union(data()$edges[grepl(input$click[1], data()$edges$from), ]$to,
+                     data()$edges[grepl(input$click[1], data()$edges$to), ]$from))
       res <-
         NitrateGenes(c(input$click[1], neighboors), nGenes, ontologies)
-      res[,!grepl("_", colnames(res))]
+      res[, !grepl("_", colnames(res))]
     }
   })
   
@@ -168,8 +168,8 @@ server <- function(input, output, session) {
     }
     else{
       neighboors <-
-        unique(union(data()$edges[grepl(input$click[1], data()$edges$from),]$to,
-                     data()$edges[grepl(input$click[1], data()$edges$to),]$from))
+        unique(union(data()$edges[grepl(input$click[1], data()$edges$from), ]$to,
+                     data()$edges[grepl(input$click[1], data()$edges$to), ]$from))
       heatmapPerso(
         normalized.count,
         conds = "all",
@@ -296,19 +296,16 @@ server <- function(input, output, session) {
   
   
   output$netClustering <- renderVisNetwork({
-    plotNetwork(dataClust())
+    plotNetwork(dataClust()) %>% visGroups(groupname = "-1", color = "lightgrey")
   })
   
   
   dataClust <- reactive({
     load(paste0("./NetworkData/", input$selectClusterNetwork))
     data$nodes$role <- data$nodes$group
-    if (input$clustType == "louvain") {
-      data$nodes$group <- data$nodes$louvainCluster
-    }
-    if (input$clustType == "coseq") {
-      data$nodes$group <- data$nodes$coseqCluster
-    }
+
+    data$nodes$group <-
+      data$nodes[, paste0(input$clustType, "Cluster")]
     updateSelectInput(session, "Module", choices = data$nodes$group)
     data$nodes$label <- data$nodes$Ontology
     data$edges$color <- '#333366'
@@ -322,29 +319,23 @@ server <- function(input, output, session) {
   })
   
   observe({
-    # genes <-
-    #   dataClust()$nodes[dataClust()$nodes$group == input$Module,]$id
-    # other <-
-    #   dataClust()$nodes[dataClust()$nodes$group != input$Module,]$label
-    # 
-    # 
     visNetworkProxy("netClustering") %>% visOptions(selectedBy = list(variable = "group", selected = input$Module))
   })
   
   output$communityList <- DT::renderDataTable({
-    dataClust()$nodes[dataClust()$nodes$group == input$Module,]
+    dataClust()$nodes[dataClust()$nodes$group == input$Module, ]
   })
   
   output$GOEnrich <- renderPlotly({
     ids <-
       as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group ==
-                                                        input$Module,]$id, ontologies$ensembl_gene_id),]$entrezgene_id)
+                                                        input$Module, ]$id, ontologies$ensembl_gene_id), ]$entrezgene_id)
     print(ids)
     withProgress(message = "Ontologies Enrichment", {
       simOnt <- OntologyEnrich(ids, as.character(universe))
     })
     simOnt@result <-
-      simOnt@result[order(-simOnt@result$p.adjust),]
+      simOnt@result[order(-simOnt@result$p.adjust), ]
     values <- str_split_fixed(simOnt@result$GeneRatio, "/", 2)
     simOnt@result$GeneRatio <-
       as.numeric(values[, 1]) / as.numeric(values[, 2])
@@ -377,7 +368,7 @@ server <- function(input, output, session) {
     for (k in unique(dataClust()$nodes$group)) {
       idsList[[as.character(k)]] <-
         na.omit(as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group ==
-                                                                  k,]$id, ontologies$ensembl_gene_id),]$entrezgene_id))
+                                                                  k, ]$id, ontologies$ensembl_gene_id), ]$entrezgene_id))
     }
     withProgress(message = 'Ontologies enrichment comparison', {
       compareOnt(idsList = idsList, as.character(universe))
@@ -388,9 +379,9 @@ server <- function(input, output, session) {
     dataK <-
       dataClust()$nodes[dataClust()$nodes[, paste0(input$clustType, "Cluster")] ==
                           input$Module &
-                          dataClust()$nodes$role == "Regulator",]
-    top <- dataK[order(-dataK$ranking),]
-    top <- top[1:round(dim(dataK)[1] * input$topRate / 100, 0),]
+                          dataClust()$nodes$role == "Regulator", ]
+    top <- dataK[order(-dataK$ranking), ]
+    top <- top[1:round(dim(dataK)[1] * input$topRate / 100, 0), ]
     top$targetNumber <-
       sapply(top$id, getTargetsNumber, dataClust())
     top$targets <- sapply(top$id, getTargets,
@@ -438,7 +429,7 @@ server <- function(input, output, session) {
   })
   
   output$edgesListDap <- DT::renderDataTable({
-    dataDap <- data()$edges[data()$edges$DapSeqAproved,]
+    dataDap <- data()$edges[data()$edges$DapSeqAproved, ]
     if (is.null(input$click)) {
       dataDap[, c("from", "Regulator_Name", "to", "Target_Name")]
     }

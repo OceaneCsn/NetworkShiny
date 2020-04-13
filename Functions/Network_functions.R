@@ -137,6 +137,17 @@ OntologyEnrich <- function(ids, universe, plot = T, simCutoff = 0.8){
   return(simpOnt)
 }
 
+#' Title
+#'
+#' @param idsList 
+#' @param universe 
+#' @param simCutoff 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+
 compareOnt <- function(idsList, universe, simCutoff = 0.8){
   ckreg <- compareCluster(geneCluster = idsList, fun = "enrichGO", OrgDb = org.At.tair.db, ont = "BP", pAdjustMethod = "BH", 
                           pvalueCutoff = 0.01, qvalueCutoff = 0.05, universe = as.character(universe))
