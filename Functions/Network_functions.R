@@ -164,6 +164,12 @@ getTargets <- function(tf, data){
   return(paste(names, collapse = ', '))
 }
 
+getRegulators <- function(gene, data){
+  regs <- data$edges[data$edges$to==gene,"from"]
+  names <- data$nodes[data$nodes$id %in% regs, "label"]
+  return(paste(names, collapse = ', '))
+}
+
 getTargetsNumber <- function(tf, data){
   return(length(data$edges[data$edges$from==tf,"to"]))
 }

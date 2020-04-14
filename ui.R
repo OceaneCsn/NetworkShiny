@@ -255,6 +255,30 @@ ui <- dashboardPage(
                 h2("Most influent regulators"),
                 numericInput("topRate", label = "Top percentage of regulators to select : (%)", value = 20),
                 DT::dataTableOutput("topTFs")
+              ),
+              tabPanel(
+                "Our favorite genes!",
+                #h2("Genes linked to nitrate we'd like to focus on :"),
+                
+                checkboxGroupInput(
+                  "groupGenes",
+                  "Genes linked to nitrate we'd like to focus on :",
+                  c(
+                    "NRT" = "NRT",
+                    "NIR" = "NIR",
+                    "BT1" = "BT1",
+                    "BT2" = "BT2",
+                    "NIA" = "NIA",
+                    "LBD" = "LBD",
+                    "HHO" = "HHO",
+                    "HRS1" = "HRS1",
+                    "G6PD" = "G6PD"
+                  ),
+                  inline = T
+                ),
+                #textInput("newGene", label = "Add a new one : ", value = NA),
+                DT::dataTableOutput("favGenes"),
+                #checkboxInput("focusGenes", "See the selected genes", FALSE)
               )
             ),
           )

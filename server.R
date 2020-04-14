@@ -303,7 +303,7 @@ server <- function(input, output, session) {
   dataClust <- reactive({
     load(paste0("./NetworkData/", input$selectClusterNetwork))
     data$nodes$role <- data$nodes$group
-
+    
     data$nodes$group <-
       data$nodes[, paste0(input$clustType, "Cluster")]
     updateSelectInput(session, "Module", choices = data$nodes$group)
@@ -321,6 +321,8 @@ server <- function(input, output, session) {
   observe({
     visNetworkProxy("netClustering") %>% visOptions(selectedBy = list(variable = "group", selected = input$Module))
   })
+  
+  
   
   output$communityList <- DT::renderDataTable({
     dataClust()$nodes[dataClust()$nodes$group == input$Module, ]
@@ -392,6 +394,46 @@ server <- function(input, output, session) {
             "targetNumber",
             "targets",
             "NitrateScore")]
+  })
+  
+  ############################################ fav Genes
+  
+  geneList <- reactive({
+    genes <- as.vector(input$groupGenes)
+    res <- c()
+    for (gene in genes) {
+      res <-
+        c(res, dataClust()$nodes$label[grepl(gene, dataClust()$nodes$label)])
+    }
+    res
+  })
+  
+  
+  output$favGenes <- DT::renderDataTable({
+    top <- dataClust()$nodes[dataClust()$nodes$label %in% geneList(), ]
+    
+    top$targets <- sapply(top$id, getTargets,
+                          dataClust())
+    
+    top$regulators <- sapply(top$id, getRegulators,
+                             dataClust())
+    
+    top <- top[order(top[,paste0(input$clustType, "Cluster")]), c(
+      "label",
+      "description",
+      "regulators",
+      "targets",
+      "louvainCluster",
+      "coseqCluster",
+      "consensusCluster"
+    )]
+    print( names(top))
+    formatStyle(datatable(top), columns = paste0(c("coseq", "louvain", "consensus"), "Cluster"), 
+                       target = c("cell", "row"),
+                       backgroundColor = styleEqual(c(1:12), c("#ccccff","#99ccff", "#ffcc00",
+                                                    "#ffffcc", "#ccffff","#ccffcc",
+                                                    "#ffe6e6", "#ffd9b3", "#ffcce6",
+                                                    "#f2ccff", "#33adff", " #00cc00")))
   })
   
   #################################### DAPSeq functions
