@@ -1,6 +1,7 @@
 # personnal functions
 source("./Functions/Visu.R")
 source("./Functions/Network_functions.R")
+source("./Functions/ClusteringFunctions.R")
 
 # expression levels and ontologies
 load("./Data/OntologyAllGenes.RData")
@@ -13,6 +14,12 @@ load("./Data/PlnTFBDRegulatorsList.RData")
 load(paste0("./NetworkData/CO2DEGenes_faibleNitrate_CO2-N.RData"))
 load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
 #load("./NetworkReference/Gaudinier_Correlations_Litterature.RData")
+
+networkCoseqMatching <- list("CO2DEGenes_faibleNitrate_CO2-N.RData" = "AmbientCO2_LowNitrateFe-ElevatedCO2_LowNitrateFeNoIronStarv.RData",
+                             "CO2DEGenes_IronStarv_CO2-Fe.RData" = "AmbientCO2_HighNitrate_FeStarvation-ElevatedCO2_HighNitrate_FeStarvation_NoNitrateStarv.RData",
+                             "CO2DEGenes_IronStarv_LowNitrate_CO2-N-Fe.RData" = "AmbientCO2_LowNitrate_FeStarvation-ElevatedCO2_LowNitrate_FeStarvation.RData")
+
+
 universe <- ontologies$entrezgene_id
 
 # Define server logic required to draw a histogram
@@ -322,8 +329,6 @@ server <- function(input, output, session) {
     visNetworkProxy("netClustering") %>% visOptions(selectedBy = list(variable = "group", selected = input$Module))
   })
   
-  
-  
   output$communityList <- DT::renderDataTable({
     dataClust()$nodes[dataClust()$nodes$group == input$Module, ]
   })
@@ -332,7 +337,6 @@ server <- function(input, output, session) {
     ids <-
       as.character(ontologies[match(dataClust()$nodes[dataClust()$nodes$group ==
                                                         input$Module, ]$id, ontologies$ensembl_gene_id), ]$entrezgene_id)
-    print(ids)
     withProgress(message = "Ontologies Enrichment", {
       simOnt <- OntologyEnrich(ids, as.character(universe))
     })
@@ -394,6 +398,32 @@ server <- function(input, output, session) {
             "targetNumber",
             "targets",
             "NitrateScore")]
+  })
+  
+  cluster <- reactive({
+    load(paste0("./ClusteringData/", networkCoseqMatching[[input$selectClusterNetwork]]))
+    cluster
+  })
+  
+  output$profiles <- renderPlot({
+    if(input$allClustersProfile){plotProfile(cluster(), boxplot = input$boxplot)}
+    else{plotProfile(cluster(), input$Module, boxplot=input$boxplot)}
+  })
+  
+  ########## glm functions 
+  
+  glm <- reactive({
+  glmCluster(DEgenes = names(cluster()[[1]][cluster()[[1]]==input$Module]), 
+             normalized.count = data.frame(cluster()[[2]]@tcounts))
+  })
+  
+  output$coefsPlot <- renderPlotly({
+    print(glm())
+    plotGlmCluster(glm())
+  })
+  
+  output$summary <- renderPrint({
+    summary(glm())
   })
   
   ############################################ fav Genes

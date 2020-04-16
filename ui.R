@@ -250,6 +250,12 @@ ui <- dashboardPage(
                 h2("Comparison of the communitites : "),
                 plotOutput("GOEnrichComp", height = 900)
               ),
+              tabPanel("Expression profiles", h2("Normalized expression profiles for that community"),
+                       checkboxInput("allClustersProfile", "See all clusters", FALSE),
+                       plotOutput("profiles", width = 1000, height = 700),
+                       checkboxInput("boxplot", "Profiles as boxplots", TRUE)),
+              tabPanel("Generalized Linear Model",  plotlyOutput("coefsPlot", height="500px", width="940px"),
+                       verbatimTextOutput("summary")),
               tabPanel(
                 "Regulators ranking",
                 h2("Most influent regulators"),
@@ -258,8 +264,6 @@ ui <- dashboardPage(
               ),
               tabPanel(
                 "Our favorite genes!",
-                #h2("Genes linked to nitrate we'd like to focus on :"),
-                
                 checkboxGroupInput(
                   "groupGenes",
                   "Genes linked to nitrate we'd like to focus on :",
@@ -276,9 +280,7 @@ ui <- dashboardPage(
                   ),
                   inline = T
                 ),
-                #textInput("newGene", label = "Add a new one : ", value = NA),
                 DT::dataTableOutput("favGenes"),
-                #checkboxInput("focusGenes", "See the selected genes", FALSE)
               )
             ),
           )
