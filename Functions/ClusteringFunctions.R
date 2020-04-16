@@ -87,12 +87,58 @@ plotProfile <- function(cluster, k="none", boxplot=T, expression = "profiles"){
   g
 }
 
+plotProfileFromNetwork <- function(netData, normalized.count, clustType, k="none", boxplot=T, expression = "profiles",
+                                   removeIronStarv = F, removeNitrateStarv=F){
+  # plot all the profiles or the profile of cluster k
+  if(removeIronStarv) normalized.count <- normalized.count[,grepl("F", colnames(normalized.count))]
+  if(removeNitrateStarv) normalized.count <- normalized.count[,grepl("N", colnames(normalized.count))]
+  
+  normalized.count <- normalized.count[netData$nodes$id,]
+  if(expression=="profiles"){profiles <- data.frame(normalized.count/rowSums(normalized.count))
+    ylab <- "Normalized expression/Mean(Normalized expression)"}
+  if(expression=="counts") {
+    profiles <- data.frame(log(as.matrix(normalized.count)+1))
+    ylab <- "log(Normalized expresion)"
+  }
+  profiles$gene <- rownames(profiles)
+  d <- melt(profiles)
+  print(head(d))
+  d$group <- str_split_fixed(d$variable, '_', 2)[,1]
+  d$cluster <- netData$nodes[match(d$gene, netData$nodes$id),clustType]
+  d$geneRep <- paste0(d$gene, substr(d$variable,4,5))
+  print(head(d))
+  if(k=="none"){
+    g <- ggplot(data = d, aes(x=group, y=value))  +facet_wrap(~cluster, nrow=3) 
+  }
+  else{
+    g <- ggplot(data = d[d$cluster==k,], aes(x=group, y=value))
+  }
+  if(boxplot) g <- g + geom_boxplot(alpha=0.7, lwd=1.2, aes( color = group), fill = "grey", outlier.color = "black",outlier.alpha =0.1)  + geom_jitter(width = 0.1, alpha=0.0015)
+  else{
+    g <- g+ geom_line(alpha=0.09,lwd=1.2, color="#333366", aes(group=geneRep))
+  }
+  
+  g <- g +theme(plot.title = element_text(size=22, face="bold"),strip.text.x = element_text(size = 20),legend.position="bottom",
+                legend.title = element_text(size = 2, face="bold"), legend.text = element_text(size=15, angle=0),
+                axis.text.y = element_text(size = 18, angle = 30), axis.text.x = element_text(size = 0, hjust = 0, colour = "grey50"),legend.text.align=1,
+                axis.title=element_text(size=24)) + xlab("") + ylab(ylab) + scale_colour_discrete("", labels=sapply(levels(as.factor(d$group)),translate)) +
+    stat_summary(fun.y=median, geom="line", aes(group=1), alpha=0.1, size = 1.5) 
+  if(expression=="profiles") g <- g + ylim(0, 0.25) 
+  g
+}
+
+
+
 ###################### Poisson GLM
 
-glmCluster <- function(DEgenes, normalized.count){
+glmCluster <- function(DEgenes, normalized.count, removeIronStarv = F,
+                       removeNitrateStarv=F){
+  if(removeIronStarv) normalized.count <- normalized.count[,grepl("F", colnames(normalized.count))]
+  if(removeNitrateStarv) normalized.count <- normalized.count[,grepl("N", colnames(normalized.count))]
   
   glmData <- melt(round(normalized.count[DEgenes,], 0))
   print(head(glmData))
+  if(grepl("AT", glmData[1,1])){glmData <- glmData[,2:length(colnames(glmData))]}
   colnames(glmData) <- c("Condition", "Counts")
   glmData <- glmData[sample(rownames(glmData)),]
   
@@ -107,6 +153,7 @@ glmCluster <- function(DEgenes, normalized.count){
   glmData$fer <- as.factor(ifelse(glmData$fer == "F", 0, 1))
   #glmData <- glmData[c("Counts", "Co2", "nitrate", "fer", "gene")]
   
+  print(head(glmData))
   formula = "Counts ~ "
   
   for (factor in c("Co2", "nitrate", "fer")){

@@ -406,15 +406,32 @@ server <- function(input, output, session) {
   })
   
   output$profiles <- renderPlot({
-    if(input$allClustersProfile){plotProfile(cluster(), boxplot = input$boxplot)}
-    else{plotProfile(cluster(), input$Module, boxplot=input$boxplot)}
+    
+    
+    if(input$allClustersProfile){plotProfileFromNetwork(dataClust(), normalized.count,
+                                                        paste0(input$clustType, "Cluster"), boxplot = input$boxplot,
+                                                        removeIronStarv = grepl("NoIronStarv", networkCoseqMatching[[input$selectClusterNetwork]]),
+                                                        removeNitrateStarv = grepl("NoNitrateStarv", networkCoseqMatching[[input$selectClusterNetwork]]))}
+    else{plotProfileFromNetwork(dataClust(), normalized.count,
+                                paste0(input$clustType, "Cluster"), k = input$Module, boxplot=input$boxplot,
+                                removeIronStarv = grepl("NoIronStarv", networkCoseqMatching[[input$selectClusterNetwork]]),
+                                removeNitrateStarv = grepl("NoNitrateStarv", networkCoseqMatching[[input$selectClusterNetwork]]))}
   })
   
   ########## glm functions 
   
   glm <- reactive({
-  glmCluster(DEgenes = names(cluster()[[1]][cluster()[[1]]==input$Module]), 
-             normalized.count = data.frame(cluster()[[2]]@tcounts))
+  if(input$clustType=="coseq"){
+    glmCluster(DEgenes = names(cluster()[[1]][cluster()[[1]]==input$Module]), 
+               normalized.count = data.frame(cluster()[[2]]@tcounts))
+  }
+  else{
+    DEgenes = dataClust()$nodes[dataClust()$nodes[,paste0(input$clustType, "Cluster")]==input$Module, "id"]
+    glmCluster(DEgenes, 
+               normalized.count = normalized.count, removeIronStarv = grepl("NoIronStarv", networkCoseqMatching[[input$selectClusterNetwork]]),
+               removeNitrateStarv = grepl("NoNitrateStarv", networkCoseqMatching[[input$selectClusterNetwork]]))
+  }
+  
   })
   
   output$coefsPlot <- renderPlotly({
