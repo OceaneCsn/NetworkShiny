@@ -24,6 +24,7 @@ universe <- ontologies$entrezgene_id
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
+   
   data <- reactive({
     load(paste0("./NetworkData/", input$select))
     data$nodes$label <- data$nodes$Ontology
@@ -40,6 +41,30 @@ server <- function(input, output, session) {
       ontologies[match(data$edges$to, ontologies$ensembl_gene_id), ]$external_gene_name
     data
   })
+  
+  
+  
+  tfs <- reactive({
+    return(data()$nodes[data()$nodes$group == "Regulator", "id"])
+  })
+  
+  targets <- reactive({
+    return(data()$nodes[data()$nodes$group == "Target Gene", "id"])
+  })
+  
+  
+  output$tfNumber <- renderValueBox({
+    valueBox(value = length(tfs()), subtitle = " Regulators",
+             color = "navy")
+  })
+  
+  
+  output$targetNumber <- renderValueBox({
+    valueBox(value = length(targets()), subtitle = "Target Genes",
+    color = "teal")
+  })
+  
+  
   
   output$network <- renderVisNetwork({
     visNetwork(nodes = data()$nodes, edges = data()$edges) %>%
@@ -142,7 +167,7 @@ server <- function(input, output, session) {
   
   output$NetStats <- renderPlot({
     net <- igraph::graph_from_data_frame(d = data()$edges)
-    netStats(net)
+    netStats(net, TFs = tfs(), targets = targets())
   })
   
   
@@ -423,7 +448,7 @@ server <- function(input, output, session) {
   glm <- reactive({
   if(input$clustType=="coseq"){
     glmCluster(DEgenes = names(cluster()[[1]][cluster()[[1]]==input$Module]), 
-               normalized.count = data.frame(cluster()[[2]]@tcounts))
+               normalized.count = data.frame(cluster()[[2]]@tcounts)) 
   }
   else{
     DEgenes = dataClust()$nodes[dataClust()$nodes[,paste0(input$clustType, "Cluster")]==input$Module, "id"]
@@ -516,6 +541,8 @@ server <- function(input, output, session) {
     }
     
   })
+  
+  
   
   output$edgesListDap <- DT::renderDataTable({
     dataDap <- data()$edges[data()$edges$DapSeqAproved, ]

@@ -78,7 +78,7 @@ ui <- dashboardPage(
             textInput("geneVis", "Visualize a precise gene (AGI)", value = ""),
             visNetworkOutput("network", height = "800px"),
             actionButton("colorFromNitrate", "Color according to nitrate score")
-          ),
+          ), 
           column(
             width = 4,
             tabsetPanel(
@@ -92,7 +92,8 @@ ui <- dashboardPage(
                 plotOutput("expression_plot")
               ),
               tabPanel("Gene ranking", DT::dataTableOutput("Ranking")),
-              tabPanel("Network statistics", plotOutput("NetStats")),
+              tabPanel("Network statistics", plotOutput("NetStats", width = "800px", height = "600px"), hr(),
+                       valueBoxOutput("tfNumber"), valueBoxOutput("targetNumber")),
               tabPanel(
                 "Comparison to gaudinier",
                 h2(
