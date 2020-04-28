@@ -264,7 +264,7 @@ ui <- dashboardPage(
                 DT::dataTableOutput("topTFs")
               ),
               tabPanel(
-                "Our favorite genes!",
+                "Our favorite genes linked to nitrate!",
                 checkboxGroupInput(
                   "groupGenes",
                   "Genes linked to nitrate we'd like to focus on :",
@@ -282,6 +282,15 @@ ui <- dashboardPage(
                   inline = T
                 ),
                 DT::dataTableOutput("favGenes"),
+              ),
+              tabPanel(
+                "Root growth",
+                shiny::h2("Transcription factors linked to root growth kindly gathered by Antoine :"),
+                DT::dataTableOutput("rootGenes"),
+              ),
+              tabPanel("Nitrate uptake deregulated genes",
+                shiny::h2("Genes downregulated by C02 linked to nitrate uptake activation :"),
+                DT::dataTableOutput("nitrateUptakeGenes"),
               )
             ),
           )

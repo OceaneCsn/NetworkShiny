@@ -9,7 +9,7 @@ load("./Data/normalized.count_At.RData")
 load("./Data/NitrateGenes.RData")
 load("./Data/DEGsListsFiltered.RData")
 load("./Data/PlnTFBDRegulatorsList.RData")
-
+load("./Data/N_uptake_genes.RData")
 
 load(paste0("./NetworkData/CO2DEGenes_faibleNitrate_CO2-N.RData"))
 load("./NetworkReference/Gaudinier_Nature_2018_TFs_Nitrates_Ref.RData")
@@ -499,13 +499,68 @@ server <- function(input, output, session) {
       "coseqCluster",
       "consensusCluster"
     )]
-    print( names(top))
     formatStyle(datatable(top), columns = paste0(c("coseq", "louvain", "consensus"), "Cluster"), 
                        target = c("cell", "row"),
                        backgroundColor = styleEqual(c(1:12), c("#ccccff","#99ccff", "#ffcc00",
                                                     "#ffffcc", "#ccffff","#ccffcc",
                                                     "#ffe6e6", "#ffd9b3", "#ffcce6",
                                                     "#f2ccff", "#33adff", " #00cc00")))
+  })
+  
+  output$rootGenes <- DT::renderDataTable({
+    
+    geneList <- c("AT5G65230", "AT5G16770", "AT1G34670", "AT5G16770", "AT1G58100",
+                  "AT4G11880", "AT4G38620", "AT3G19580", "AT3G03660")
+    top <- dataClust()$nodes[dataClust()$nodes$id %in% geneList, ]
+    
+    top$targets <- sapply(top$id, getTargets,
+                          dataClust())
+    
+    top$regulators <- sapply(top$id, getRegulators,
+                             dataClust())
+    
+    top <- top[order(top[,paste0(input$clustType, "Cluster")]), c(
+      "label",
+      "description",
+      "regulators",
+      "louvainCluster",
+      "coseqCluster",
+      "consensusCluster"
+    )]
+    formatStyle(datatable(top), columns = paste0(c("coseq", "louvain", "consensus"), "Cluster"), 
+                target = c("cell", "row"),
+                backgroundColor = styleEqual(c(1:12), c("#ccccff","#99ccff", "#ffcc00",
+                                                        "#ffffcc", "#ccffff","#ccffcc",
+                                                        "#ffe6e6", "#ffd9b3", "#ffcce6",
+                                                        "#f2ccff", "#33adff", " #00cc00")))
+  })
+  
+    output$nitrateUptakeGenes <- DT::renderDataTable({
+      
+      top <- dataClust()$nodes[dataClust()$nodes$id %in% n_uptake_genes, ]
+      
+      top$targets <- sapply(top$id, getTargets,
+                            dataClust())
+      
+      top$regulators <- sapply(top$id, getRegulators,
+                               dataClust())
+      
+      top <- top[order(top[,paste0(input$clustType, "Cluster")]), c(
+        "label",
+        "description",
+        "regulators",
+        "targets",
+        "louvainCluster",
+        "coseqCluster",
+        "consensusCluster"
+      )]
+      formatStyle(datatable(top), columns = paste0(c("coseq", "louvain", "consensus"), "Cluster"), 
+                  target = c("cell", "row"),
+                  backgroundColor = styleEqual(c(1:12), c("#ccccff","#99ccff", "#ffcc00",
+                                                          "#ffffcc", "#ccffff","#ccffcc",
+                                                          "#ffe6e6", "#ffd9b3", "#ffcce6",
+                                                          "#f2ccff", "#33adff", " #00cc00")))
+    
   })
   
   #################################### DAPSeq functions
