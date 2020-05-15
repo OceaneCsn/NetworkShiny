@@ -29,6 +29,24 @@ NitrateGenes <- function(genesK, nGenes, ontologies){
   return(res)
 }
 
+networkData <- function(net, ontologies, TF){
+  ont <- ontologies[match(V(net)$name, ontologies$ensembl_gene_id),]
+  data <- toVisNetworkData(net)
+  
+  #attributs des noeuds et des liens
+  data$nodes$Ontology <- ont[match(data$nodes$id, ont$ensembl_gene_id),]$external_gene_name
+  data$nodes$description <-ont[match(data$nodes$id, ont$ensembl_gene_id),]$description
+  data$nodes$group <- ifelse(data$nodes$id %in% TF$AGI, "Regulator", "Target Gene")
+  
+  importance <- (degree(net)/max(degree(net))+betweenness(net)/max(betweenness(net)))*0.5
+  
+  data$nodes$ranking <- importance[match(data$nodes$id, names(importance))]
+  data$edges$value <- data$edges$weight
+  print(kable(head(data$nodes[order(-data$nodes$ranking),], n=40)))
+  
+  return(data)
+}
+
 
 getTargets <- function(tf, data){
   targets <- data$edges[data$edges$from==tf,"to"]

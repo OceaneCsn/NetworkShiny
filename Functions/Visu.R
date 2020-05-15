@@ -164,7 +164,7 @@ netStats <- function(g, TFs, targets) {
       fill = "#69b322",
       color = "#e9ecef",
       alpha = 0.7
-    ) +
+    ) + xlim(0,10) +
     ggtitle("Out-Degree distribution of regulators") +
     theme(plot.title = element_text(size = 16), axis.text.x = element_text(size = 15),
           axis.title.x = element_blank(), axis.title.y = element_blank())

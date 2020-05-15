@@ -29,6 +29,7 @@ server <- function(input, output, session) {
     load(paste0("./NetworkData/", input$select))
     data$nodes$label <- data$nodes$Ontology
     data$edges$color <- '#333366'
+    data$edges$value <- data$edges$weight
     data$edges$Regulator_Name <-
       ontologies[match(data$edges$from, ontologies$ensembl_gene_id), ]$external_gene_name
     data$nodes$description <-
@@ -69,7 +70,7 @@ server <- function(input, output, session) {
   output$network <- renderVisNetwork({
     visNetwork(nodes = data()$nodes, edges = data()$edges) %>%
       visEdges(smooth = FALSE,
-               arrows = 'to',
+               arrows = 'to', 
                color = '#333366') %>%
       # visPhysics(solver = "forceAtlas2Based", timestep = 0.9, minVelocity=10,
       #            maxVelocity = 10, stabilization = F)%>%
@@ -151,11 +152,15 @@ server <- function(input, output, session) {
     data$nodes$Centrality <-
       importance[match(data$nodes$id, names(importance))]
     data$nodes$Rank <- order(-data$nodes$Centrality)
-    data$nodes[order(-data$nodes$Centrality), c("description",
-                                                "Ontology",
-                                                "Centrality",
-                                                "Betweenness",
-                                                "Degree")]
+    columns <- c("description",
+                 "Ontology",
+                 "Centrality",
+                 "Betweenness",
+                 "Degree")
+    if("label_TAIR" %in% colnames(data$nodes)){
+      columns <- c(columns, "label_TAIR") 
+    }
+    data$nodes[order(-data$nodes$Centrality), columns]
     
   })
   
@@ -251,6 +256,7 @@ server <- function(input, output, session) {
   
   output$netIntersection <- renderVisNetwork({
     load(paste0("./NetworkData/", input$select1))
+    data$edges$color = '#333366'
     network1 <- igraph::graph_from_data_frame(d = data$edges)
     
     load(paste0("./NetworkData/", input$select2))

@@ -103,10 +103,10 @@ plotProfileFromNetwork <- function(netData, normalized.count, clustType, k="none
   profiles$gene <- rownames(profiles)
   d <- melt(profiles)
   print(head(d))
-  d$group <- str_split_fixed(d$variable, '_', 2)[,1]
+  d$group <- stringr::str_split_fixed(d$variable, '_', 2)[,1]
   d$cluster <- netData$nodes[match(d$gene, netData$nodes$id),clustType]
   d$geneRep <- paste0(d$gene, substr(d$variable,4,5))
-  print(head(d))
+
   if(k=="none"){
     g <- ggplot(data = d, aes(x=group, y=value))  +facet_wrap(~cluster, nrow=3) 
   }
